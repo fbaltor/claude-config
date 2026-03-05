@@ -1,0 +1,17 @@
+# Ignore everything by default
+*
+
+# Track config files
+!.gitignore
+!settings.json
+
+# Track custom commands and agents
+!commands/
+!commands/**
+!agents/
+!agents/**
+
+# Track plugin configs (not the large plugin binaries)
+!plugins/
+!plugins/*.json
+

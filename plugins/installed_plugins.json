@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "plugins": {
+    "code-simplifier@claude-plugins-official": [
+      {
+        "scope": "project",
+        "installPath": "/home/fbaltor/.claude/plugins/cache/claude-plugins-official/code-simplifier/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-02-26T02:48:45.508Z",
+        "lastUpdated": "2026-02-26T02:48:45.508Z",
+        "gitCommitSha": "55b58ec6e5649104f926ba7558b567dc8d33c5ff",
+        "projectPath": "/home/fbaltor/jumpstart/jumpstart"
+      }
+    ]
+  }
+}
