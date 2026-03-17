@@ -11,9 +11,10 @@
 !agents/
 !agents/**
 
-# Track plugin configs (not the large plugin binaries)
+# Track plugin configs (not auto-refreshed metadata)
 !plugins/
-!plugins/*.json
+!plugins/config.json
+!plugins/installed_plugins.json
 
 # Track plans and research
 !plans/
