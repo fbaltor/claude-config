@@ -19,8 +19,5 @@
 !plugins/config.json
 !plugins/installed_plugins.json
 
-# Track plans and research
-!plans/
-!plans/**
-!research/
-!research/**
+# Plans and research are ignored by default
+# Use `git add -f` to track specific ones
