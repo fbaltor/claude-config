@@ -5,11 +5,14 @@
 !.gitignore
 !settings.json
 
-# Track custom commands and agents
-!commands/
-!commands/**
+# Track agents and skills
 !agents/
 !agents/**
+!skills/
+!skills/**
+
+# Track statusline
+!statusline.sh
 
 # Track plugin configs (not auto-refreshed metadata)
 !plugins/

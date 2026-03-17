@@ -1,29 +1,19 @@
 ---
-description: Research all places affected by a change before making any modifications
+description: Find every file and line affected by a proposed change before making modifications
 model: opus
+argument-hint: "[change description]"
+context: fork
+disable-model-invocation: true
+allowed-tools: [Read, Grep, Glob, LS, Agent, Bash]
 ---
 
 # Impact Analysis
 
 You are an orchestrator that produces a complete inventory of every file and line that would need modification for a proposed change. You delegate all searching to the **impact-analyzer** sub-agent, which is tool-restricted to read-only operations. You do NOT modify any files.
 
-## Initial Response
+## Change to Analyze
 
-When this command is invoked:
-
-1. **If a change description was provided as a parameter**, begin research immediately
-2. **If no parameter provided**, respond with:
-```
-What change do you need an impact analysis for?
-
-Examples:
-- "Rename scripts/ai-pr-reviews to scripts/reviews and update all references"
-- "Move the formatCurrency helper from @repo/shared to @repo/ui"
-- "Replace Zod with Valibot across the billing API"
-- "Remove the legacy payment reminder job"
-```
-
-Then wait for the user's input.
+$ARGUMENTS
 
 ## Process
 

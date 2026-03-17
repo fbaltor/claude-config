@@ -1,6 +1,9 @@
 ---
 description: Create detailed implementation plans with thorough research and iteration
 model: opus
+argument-hint: "[ticket-path or description]"
+disable-model-invocation: true
+allowed-tools: [Write]
 ---
 
 # Implementation Plan
@@ -40,10 +43,10 @@ Then wait for the user's input.
    - Related implementation plans
    - Any JSON/data files mentioned
    - **IMPORTANT**: Use the Read tool WITHOUT limit/offset parameters to read entire files
-   - **CRITICAL**: DO NOT spawn sub-tasks before reading these files yourself in the main context
+   - **CRITICAL**: DO NOT spawn sub-agents before reading these files yourself in the main context
    - **NEVER** read files partially - if a file is mentioned, read it completely
 
-2. **Spawn initial research tasks to gather context**:
+2. **Spawn initial research agents to gather context**:
    Before asking the user any questions, use specialized agents to research in parallel:
 
    - Use the **codebase-locator** agent to find all files related to the ticket/task
@@ -54,8 +57,8 @@ Then wait for the user's input.
    - Trace data flow and key functions
    - Return detailed explanations with file:line references
 
-3. **Read all files identified by research tasks**:
-   - After research tasks complete, read ALL files they identified as relevant
+3. **Read all files identified by research agents**:
+   - After research agents complete, read ALL files they identified as relevant
    - Read them FULLY into the main context
    - This ensures you have complete understanding before proceeding
 
@@ -88,14 +91,12 @@ After getting initial clarifications:
 
 1. **If the user corrects any misunderstanding**:
    - DO NOT just accept the correction
-   - Spawn new research tasks to verify the correct information
+   - Spawn new research agents to verify the correct information
    - Read the specific files/directories they mention
    - Only proceed once you've verified the facts yourself
 
-2. **Create a research todo list** using TodoWrite to track exploration tasks
-
-3. **Spawn parallel sub-tasks for comprehensive research**:
-   - Create multiple Task agents to research different aspects concurrently
+2. **Spawn parallel sub-agents for comprehensive research**:
+   - Create multiple Agent instances to research different aspects concurrently
    - Use the right agent for each type of research:
 
    **For deeper investigation:**
@@ -110,7 +111,7 @@ After getting initial clarifications:
    - Return specific file:line references
    - Find tests and examples
 
-3. **Wait for ALL sub-tasks to complete** before proceeding
+3. **Wait for ALL sub-agents to complete** before proceeding
 
 4. **Present findings and design options**:
    ```
@@ -299,7 +300,7 @@ After structure approval:
 
 3. **Be Thorough**:
    - Read all context files COMPLETELY before planning
-   - Research actual code patterns using parallel sub-tasks
+   - Research actual code patterns using parallel sub-agents
    - Include specific file paths and line numbers
    - Write measurable success criteria with clear automated vs manual distinction
 
@@ -309,12 +310,7 @@ After structure approval:
    - Think about edge cases
    - Include "what we're NOT doing"
 
-5. **Track Progress**:
-   - Use TodoWrite to track planning tasks
-   - Update todos as you complete research
-   - Mark planning tasks complete when done
-
-6. **No Open Questions in Final Plan**:
+5. **No Open Questions in Final Plan**:
    - If you encounter open questions during planning, STOP
    - Research or ask for clarification immediately
    - Do NOT write the plan with unresolved questions
@@ -376,12 +372,12 @@ After structure approval:
 - Maintain backwards compatibility
 - Include migration strategy
 
-## Sub-task Spawning Best Practices
+## Sub-Agent Spawning Best Practices
 
-When spawning research sub-tasks:
+When spawning research sub-agents:
 
-1. **Spawn multiple tasks in parallel** for efficiency
-2. **Each task should be focused** on a specific area
+1. **Spawn multiple agents in parallel** for efficiency
+2. **Each agent should be focused** on a specific area
 3. **Provide detailed instructions** including:
    - Exactly what to search for
    - Which directories to focus on
@@ -391,27 +387,16 @@ When spawning research sub-tasks:
    - Include the full path context in your prompts
 5. **Specify read-only tools** to use
 6. **Request specific file:line references** in responses
-7. **Wait for all tasks to complete** before synthesizing
-8. **Verify sub-task results**:
-   - If a sub-task returns unexpected results, spawn follow-up tasks
+7. **Wait for all agents to complete** before synthesizing
+8. **Verify sub-agent results**:
+   - If a sub-agent returns unexpected results, spawn follow-up agents
    - Cross-check findings against the actual codebase
    - Don't accept results that seem incorrect
-
-Example of spawning multiple tasks:
-```python
-# Spawn these tasks concurrently:
-tasks = [
-    Task("Research database schema", db_research_prompt),
-    Task("Find API patterns", api_research_prompt),
-    Task("Investigate UI components", ui_research_prompt),
-    Task("Check test patterns", test_research_prompt)
-]
-```
 
 ## Example Interaction Flow
 
 ```
-User: /create_plan_generic
+User: /create_plan
 Assistant: I'll help you create a detailed implementation plan...
 
 User: We need to add pagination to the API endpoints.
