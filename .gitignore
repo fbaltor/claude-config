@@ -15,3 +15,8 @@
 !plugins/
 !plugins/*.json
 
+# Track plans and research
+!plans/
+!plans/**
+!research/
+!research/**
