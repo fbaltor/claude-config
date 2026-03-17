@@ -72,13 +72,13 @@ $ARGUMENTS
 
 5. **Gather metadata for the research document:**
    - Generate all relevant metadata
-   - Filename: `.claude/research/YYYY-MM-DD-description.md`
+   - Filename: `~/.claude/research/YYYY-MM-DD-description.md`
      - Format: `YYYY-MM-DD-description.md` where:
        - YYYY-MM-DD is today's date
        - description is a brief kebab-case description of the research topic
      - Examples:
-       - `2025-01-08-authentication-flow.md`
-       - `2025-01-08-billing-data-model.md`
+       - `~/.claude/research/2025-01-08-authentication-flow.md`
+       - `~/.claude/research/2025-01-08-billing-data-model.md`
 
 6. **Generate research document:**
    - Use the metadata gathered in step 5

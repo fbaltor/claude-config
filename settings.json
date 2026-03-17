@@ -15,19 +15,6 @@
       "Bash(chown *)"
     ]
   },
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "prompt",
-            "prompt": "Evaluate the assistant's last message in this transcript: $ARGUMENTS\n\nCheck for premature completion:\n1. Did it declare the task complete while leaving TODOs, placeholder code, or untested changes?\n2. Did it skip a step from the plan because it seemed hard or unclear?\n3. Did it say 'I will do X next' or 'you can do X' without actually doing it?\n4. Does the message contain hand-wavy language ('should work', 'typically', 'appears to') about untested changes?\n\nIf stop_hook_active is true in the input, always allow stopping (respond with {\"decision\": \"allow\"}).\n\nOtherwise respond with JSON:\n{\"decision\": \"block\", \"reason\": \"[specific issue detected]\"}\nor\n{\"decision\": \"allow\"} if work is genuinely complete or the assistant is correctly pausing for user input.",
-            "timeout": 30
-          }
-        ]
-      }
-    ]
-  },
   "statusLine": {
     "type": "command",
     "command": "~/.claude/statusline.sh"

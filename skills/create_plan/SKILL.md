@@ -157,13 +157,13 @@ Once aligned on approach:
 
 After structure approval:
 
-1. **Write the plan** to `.claude/plans/YYYY-MM-DD-description.md`
+1. **Write the plan** to `~/.claude/plans/YYYY-MM-DD-description.md`
    - Format: `YYYY-MM-DD-description.md` where:
      - YYYY-MM-DD is today's date
      - description is a brief kebab-case description
    - Examples:
-     - `2025-01-08-add-pagination.md`
-     - `2025-01-08-improve-error-handling.md`
+     - `~/.claude/plans/2025-01-08-add-pagination.md`
+     - `~/.claude/plans/2025-01-08-improve-error-handling.md`
 2. **Use this template structure**:
 
 ````markdown
@@ -259,7 +259,7 @@ After structure approval:
 ## References
 
 - Similar implementation: `[file:line]`
-- Related research: `.claude/research/[relevant].md`
+- Related research: `~/.claude/research/[relevant].md`
 ````
 
 ### Step 5: Review
@@ -267,7 +267,7 @@ After structure approval:
 1. **Present the draft plan location**:
    ```
    I've created the initial implementation plan at:
-   `.claude/plans/YYYY-MM-DD-description.md`
+   `~/.claude/plans/YYYY-MM-DD-description.md`
 
    Please review it and let me know:
    - Are the phases properly scoped?

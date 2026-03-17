@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Implement Plan
 
-You are tasked with implementing an approved technical plan from `.claude/plans/`. These plans contain phases with specific changes and success criteria.
+You are tasked with implementing an approved technical plan from `~/.claude/plans/`. These plans contain phases with specific changes and success criteria.
 
 ## Getting Started
 
