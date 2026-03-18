@@ -24,5 +24,6 @@
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
-  "autoMemoryEnabled": true
+  "autoMemoryEnabled": true,
+  "plansDirectory": "~/.claude/plans"
 }

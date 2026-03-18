@@ -3,6 +3,7 @@
 
 # Track config files
 !.gitignore
+!CLAUDE.md
 !settings.json
 
 # Track agents and skills
