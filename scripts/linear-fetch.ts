@@ -15,9 +15,9 @@ import { LinearClient } from "@linear/sdk";
 import { execSync } from "node:child_process";
 
 function getClient(): LinearClient {
-  const apiKey = process.env.LINEAR_API_KEY;
+  const apiKey = process.env.LINEAR_API_KEY_READ ?? process.env.LINEAR_API_KEY;
   if (!apiKey) {
-    console.error("LINEAR_API_KEY not set.");
+    console.error("LINEAR_API_KEY_READ (or LINEAR_API_KEY) not set.");
     process.exit(1);
   }
   return new LinearClient({ apiKey });
