@@ -1,0 +1,11 @@
+{
+  "name": "claude-scripts",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@linear/sdk": "^78.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0"
+  }
+}

@@ -6,6 +6,11 @@
 !CLAUDE.md
 !settings.json
 
+# Track scripts
+!scripts/
+!scripts/**
+node_modules
+
 # Track agents and skills
 !agents/
 !agents/**
