@@ -3,9 +3,19 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@linear/sdk": "^78.0.0"
+    "@linear/sdk": "^78.0.0",
+    "@octokit/graphql": "^9.0.3",
+    "@octokit/rest": "^22.0.1",
+    "js-yaml": "^4.1.1"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0"
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^25.5.0",
+    "tsx": "^4.21.0"
+  },
+  "scripts": {
+    "fetch-reviews": "tsx reviews/fetch-reviews.ts",
+    "check-reviews": "tsx reviews/check-reviews.ts",
+    "test:reviews": "node --import tsx --experimental-test-module-mocks --test reviews/__tests__/*.test.ts"
   }
 }
