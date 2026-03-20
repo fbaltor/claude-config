@@ -2,7 +2,6 @@
 description: Fetch all PR review comments (human + bot), analyze them against the source code, and classify as false positive / minor / major
 model: opus
 argument-hint: "[--wait] [--pr <number>] [--repo owner/repo]"
-disable-model-invocation: true
 allowed-tools: [Read, Bash, Grep, Glob]
 ---
 
