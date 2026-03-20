@@ -10,6 +10,7 @@
 # Track scripts
 !scripts/
 !scripts/**
+scripts/.env
 node_modules
 
 # Track agents and skills

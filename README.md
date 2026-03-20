@@ -67,11 +67,20 @@ npm install
 
 ### Environment Variables
 
-| Variable | Purpose |
-|----------|---------|
-| `LINEAR_API_KEY_READ` | Read-only Linear API access (preferred for fetch) |
-| `LINEAR_API_KEY_ALL` | Read+write Linear access (used for document push) |
-| `LINEAR_API_KEY` | General fallback for Linear API |
+The scripts require API keys set as environment variables. Copy the example file and fill in your keys:
+
+```bash
+cp ~/.claude/scripts/.env.example ~/.claude/scripts/.env
+```
+
+| Variable | Used By | Purpose | Required? |
+|----------|---------|---------|-----------|
+| `LINEAR_API_KEY` | Linear scripts | General Linear API authentication | Yes, if specific keys below are not set |
+| `LINEAR_API_KEY_READ` | Linear scripts | Read-only Linear API access (fetch issues, pull docs) | No — falls back to `LINEAR_API_KEY` |
+| `LINEAR_API_KEY_ALL` | Linear scripts | Read+write Linear API access (push docs) | No — falls back to `LINEAR_API_KEY` |
+| `GITHUB_TOKEN` | Review scripts | GitHub API authentication (Octokit) | No — falls back to `gh auth token` |
+
+> **Note:** The Linear and Notion **MCP integrations** (used by Claude Code directly) authenticate via OAuth through the plugin system — they do not need environment variables.
 
 ## Integrations (MCP)
 
