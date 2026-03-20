@@ -5,7 +5,7 @@ disable-model-invocation: false
 
 ## Push result
 
-!`npx tsx "$HOME/.claude/scripts/linear-doc-sync.ts" push $ARGUMENTS`
+!`echo "Syncing: $ARGUMENTS" && npx tsx "$HOME/.claude/scripts/linear-doc-sync.ts" push $ARGUMENTS`
 
 ## Instructions
 
