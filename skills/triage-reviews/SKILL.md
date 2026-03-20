@@ -23,7 +23,7 @@ Parse `$ARGUMENTS` for:
 ### Without `--wait`:
 
 ```bash
-npx tsx "$HOME/.claude/scripts/reviews/fetch-reviews.ts" --pr PR --repo OWNER/REPO
+npx tsx "$HOME/.claude/scripts/reviews/src/cli/fetch-reviews.ts" --pr PR --repo OWNER/REPO
 ```
 
 ### With `--wait`:
@@ -31,7 +31,7 @@ npx tsx "$HOME/.claude/scripts/reviews/fetch-reviews.ts" --pr PR --repo OWNER/RE
 Run the fetch command with `--wait` using the Bash tool with `run_in_background: true`:
 
 ```bash
-npx tsx "$HOME/.claude/scripts/reviews/fetch-reviews.ts" --wait --pr PR --repo OWNER/REPO
+npx tsx "$HOME/.claude/scripts/reviews/src/cli/fetch-reviews.ts" --wait --pr PR --repo OWNER/REPO
 ```
 
 Tell the user: "Waiting for bot reviews to complete. I'll proceed with triage when ready."

@@ -2,8 +2,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import yaml from "js-yaml";
 
-import { buildYamlOutput, type BuildYamlInput } from "../yaml-builder/index.js";
-import type { YamlDocument } from "../yaml-builder/types.js";
+import { buildYamlOutput, type BuildYamlInput } from "../src/yaml-builder/index.js";
+import type { YamlDocument } from "../src/yaml-builder/types.js";
 
 // ---------------------------------------------------------------------------
 // Helpers

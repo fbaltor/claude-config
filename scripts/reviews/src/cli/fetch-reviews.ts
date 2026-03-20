@@ -1,0 +1,315 @@
+#!/usr/bin/env node
+
+/**
+ * CLI entry point for fetching PR review comments.
+ *
+ * Usage:
+ *   npx tsx src/cli/fetch-reviews.ts --pr <number>
+ *
+ * If --pr is omitted, the script tries to detect the PR from the current branch.
+ * Requires: `gh` CLI authenticated with repo access, or GITHUB_TOKEN env var.
+ */
+
+import { writeFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
+import { graphql } from "@octokit/graphql";
+import { Octokit } from "@octokit/rest";
+import { getGitHubToken, parseCommonArgs } from "../cli-utils.js";
+import { waitForCompletion } from "../check-reviews.js";
+import { buildYamlOutput } from "../yaml-builder/index.js";
+import {
+  getAuthorName,
+  getAuthorType,
+  type ReviewThreadNode,
+} from "../shared.js";
+import {
+  type ReviewFilter,
+  matchesFilter,
+  groupByReviewer,
+  collectByReviewer,
+  buildJsonSidecar,
+  buildByReviewerMarkdown,
+  checkNestedTruncation,
+  fetchAllReviews,
+  fetchAllReviewThreads,
+  fetchAllComments,
+} from "../fetch-reviews.js";
+
+// ---------------------------------------------------------------------------
+// CLI arg parsing
+// ---------------------------------------------------------------------------
+
+interface CliArgs {
+  pr: number;
+  owner: string;
+  repo: string;
+  wait: boolean;
+  rerun: boolean;
+  filter: ReviewFilter;
+}
+
+function printHelp(): never {
+  console.log(`Usage: npx tsx src/cli/fetch-reviews.ts [options]
+
+Fetches review comments from a GitHub PR and saves them
+as timestamped files in .pr-reviews/ (current working directory).
+
+By default fetches ALL reviewers (human + bot).
+
+Options:
+  --pr <number>      PR number (auto-detects from current branch if omitted)
+  --repo owner/repo  Target repository (default: Jumpstart-Immigration/jumpstart)
+  --bot              Only include bot reviewers
+  --human            Only include human reviewers
+  --wait             Wait for AI review checks to complete before fetching
+  --rerun            Re-trigger failed review checks (use with --wait)
+  --help             Show this help message
+
+Requires: gh CLI authenticated with repo access, or GITHUB_TOKEN env var.
+
+Examples:
+  npx tsx src/cli/fetch-reviews.ts --pr 39
+  npx tsx src/cli/fetch-reviews.ts --bot --pr 39
+  npx tsx src/cli/fetch-reviews.ts --wait --pr 39`);
+  process.exit(0);
+}
+
+function parseArgs(): CliArgs {
+  const args = process.argv.slice(2);
+  if (args.includes("--help")) printHelp();
+
+  const common = parseCommonArgs(args);
+
+  let filter: ReviewFilter = "all";
+  if (args.includes("--bot")) filter = "bot";
+  else if (args.includes("--human")) filter = "human";
+
+  return {
+    ...common,
+    wait: args.includes("--wait"),
+    rerun: args.includes("--rerun"),
+    filter,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
+async function main(): Promise<void> {
+  const { pr, owner, repo, wait, rerun, filter } = parseArgs();
+
+  const token = getGitHubToken();
+
+  // If --wait, delegate to status checker first
+  if (wait) {
+    console.log(`Checking AI review status for PR #${pr}...`);
+    const octokit = new Octokit({ auth: token });
+    const result = await waitForCompletion(octokit, owner, repo, pr, { rerun });
+    if (!result.allCompleted || result.anyFailed) {
+      console.error("AI reviews did not complete successfully. Aborting fetch.");
+      process.exit(1);
+    }
+    console.log("Fetching comments...\n");
+  }
+
+  const filterLabel = filter === "all" ? "" : ` (${filter} only)`;
+  console.log(
+    `Fetching review comments for ${owner}/${repo} PR #${pr}${filterLabel}...`,
+  );
+
+  const now = new Date();
+  const isoString = now.toISOString();
+  const localISO = new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString();
+  const timestamp = localISO.replace(/[:T]/g, "-").slice(0, 19);
+
+  const gql = graphql.defaults({
+    headers: { authorization: `token ${token}` },
+  });
+
+  const [{ prMeta, reviews: allReviews }, allThreads, allComments] =
+    await Promise.all([
+      fetchAllReviews(gql, owner, repo, pr),
+      fetchAllReviewThreads(gql, owner, repo, pr),
+      fetchAllComments(gql, owner, repo, pr),
+    ]);
+
+  checkNestedTruncation(allThreads);
+
+  // Apply reviewer filter (default: all)
+  const reviews = allReviews.filter((r) => matchesFilter(r.author, filter));
+
+  const filteredThreads = allThreads.filter((thread) => {
+    const first = thread.comments.nodes[0];
+    return first != null && matchesFilter(first.author, filter);
+  });
+
+  const prComments = allComments.filter((c) => matchesFilter(c.author, filter));
+
+  console.log(
+    `Found: ${reviews.length} reviews, ${filteredThreads.length} inline threads, ${prComments.length} PR comments`,
+  );
+
+  // Build markdown
+  const lines: string[] = [];
+
+  lines.push(`# PR Reviews — #${pr}`);
+  lines.push("");
+  lines.push(`> **PR**: [#${pr} — ${prMeta.title}](${prMeta.url})`);
+  lines.push(`> **Generated**: ${isoString}`);
+  lines.push("");
+  lines.push("---");
+  lines.push("");
+
+  // Section 1: Review summaries (grouped by bot, empty bodies collapsed)
+  if (reviews.length > 0) {
+    lines.push("## Review Summaries");
+    lines.push("");
+
+    const reviewsByReviewer = groupByReviewer(reviews);
+
+    for (const [reviewerName, reviewerReviews] of reviewsByReviewer) {
+      const withBody = reviewerReviews.filter((r) => r.body);
+      const emptyCount = reviewerReviews.length - withBody.length;
+
+      for (const review of withBody) {
+        lines.push(
+          `### Review by ${reviewerName} (state: ${review.state})`,
+        );
+        lines.push("");
+        lines.push(review.body);
+        lines.push("");
+        lines.push("---");
+        lines.push("");
+      }
+
+      if (emptyCount > 0) {
+        lines.push(
+          `_${reviewerName} posted ${emptyCount} inline review${emptyCount > 1 ? "s" : ""} (see Inline Comments below)_`,
+        );
+        lines.push("");
+        lines.push("---");
+        lines.push("");
+      }
+    }
+  }
+
+  // Section 2: Inline review comments (file-specific)
+  if (filteredThreads.length > 0) {
+    lines.push("## Inline Comments (File-Specific)");
+    lines.push("");
+
+    // Group by file path for better readability
+    const byFile = new Map<string, ReviewThreadNode[]>();
+    for (const thread of filteredThreads) {
+      const existing = byFile.get(thread.path) ?? [];
+      existing.push(thread);
+      byFile.set(thread.path, existing);
+    }
+
+    for (const [filePath, threads] of byFile) {
+      lines.push(`### \`${filePath}\``);
+      lines.push("");
+
+      for (const thread of threads) {
+        const lineInfo = thread.line ? ` (line ${thread.line})` : "";
+        const resolvedTag = thread.isResolved ? " [resolved]" : "";
+        lines.push(`#### ${lineInfo}${resolvedTag}`);
+        lines.push("");
+
+        // Include all comments in the thread (bot and human replies)
+        for (const comment of thread.comments.nodes) {
+          const authorName = getAuthorName(comment.author);
+          const authorType = getAuthorType(comment.author);
+          lines.push(`**${authorName}** _(${authorType})_:`);
+          lines.push("");
+          lines.push(comment.body);
+          lines.push("");
+        }
+        lines.push("---");
+        lines.push("");
+      }
+    }
+  }
+
+  // Section 3: General PR comments
+  if (prComments.length > 0) {
+    lines.push("## General PR Comments");
+    lines.push("");
+
+    for (const comment of prComments) {
+      lines.push(
+        `### ${getAuthorName(comment.author)} (${comment.createdAt})`,
+      );
+      lines.push("");
+      lines.push(comment.body);
+      lines.push("");
+      lines.push("---");
+      lines.push("");
+    }
+  }
+
+  // Write raw output
+  const outDir = join(
+    process.cwd(),
+    ".pr-reviews",
+  );
+  mkdirSync(outDir, { recursive: true });
+
+  const outPath = join(outDir, `pr-${pr}-reviews-${timestamp}.md`);
+  writeFileSync(outPath, lines.join("\n"), "utf-8");
+
+  console.log(`Saved to ${outPath}`);
+
+  // Write by-bot organized output
+  const reviewerMap = collectByReviewer(reviews, filteredThreads, prComments);
+  const byReviewerContent = buildByReviewerMarkdown(
+    pr,
+    prMeta.title,
+    prMeta.url,
+    isoString,
+    reviewerMap,
+  );
+  const byReviewerPath = join(outDir, `pr-${pr}-reviews-${timestamp}-by-reviewer.md`);
+  writeFileSync(byReviewerPath, byReviewerContent, "utf-8");
+
+  console.log(`Saved to ${byReviewerPath}`);
+
+  // Write JSON sidecar
+  const sidecar = buildJsonSidecar(
+    pr,
+    `${owner}/${repo}`,
+    prMeta.title,
+    prMeta.url,
+    isoString,
+    reviewerMap,
+    filteredThreads,
+  );
+  const jsonPath = join(outDir, `pr-${pr}-reviews-${timestamp}.json`);
+  writeFileSync(jsonPath, JSON.stringify(sidecar, null, 2), "utf-8");
+
+  console.log(`Saved to ${jsonPath}`);
+
+  // Write YAML output
+  const yamlContent = buildYamlOutput({
+    pr,
+    owner,
+    repo,
+    prMeta,
+    reviews,
+    threads: filteredThreads,
+    comments: prComments,
+  });
+  const yamlPath = join(outDir, `pr-${pr}-reviews-${timestamp}.yaml`);
+  writeFileSync(yamlPath, yamlContent, "utf-8");
+
+  console.log(`Saved to ${yamlPath}`);
+}
+
+const isMainModule = process.argv[1]?.endsWith("fetch-reviews.ts");
+if (isMainModule) {
+  main().catch((err) => {
+    console.error("Fatal error:", err);
+    process.exit(1);
+  });
+}

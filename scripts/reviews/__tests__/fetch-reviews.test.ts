@@ -8,7 +8,7 @@ import {
   buildByReviewerMarkdown,
   checkNestedTruncation,
   matchesFilter,
-} from "../fetch-reviews.js";
+} from "../src/fetch-reviews.js";
 import {
   isBot,
   getAuthorName,
@@ -20,7 +20,7 @@ import {
   type ReviewThreadNode,
   type CommentNode,
   type ReviewerData,
-} from "../shared.js";
+} from "../src/shared.js";
 
 // ---------------------------------------------------------------------------
 // Factory helpers

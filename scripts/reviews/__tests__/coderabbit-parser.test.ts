@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { CodeRabbitParser } from "../yaml-builder/parsers/coderabbit.js";
+import { CodeRabbitParser } from "../src/yaml-builder/parsers/coderabbit.js";
 
 // ---------------------------------------------------------------------------
 // K4 — explodeSummary should propagate severity/category from section headers

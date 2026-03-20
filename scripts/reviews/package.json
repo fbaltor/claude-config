@@ -1,0 +1,31 @@
+{
+  "name": "pr-review-fetcher",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "fetch-reviews": "./src/cli/fetch-reviews.ts",
+    "check-reviews": "./src/cli/check-reviews.ts"
+  },
+  "scripts": {
+    "fetch-reviews": "tsx src/cli/fetch-reviews.ts",
+    "check-reviews": "tsx src/cli/check-reviews.ts",
+    "test": "node --import tsx --experimental-test-module-mocks --test __tests__/*.test.ts",
+    "build": "tsc",
+    "prepublishOnly": "npm run build && cp -r src/queries dist/queries"
+  },
+  "dependencies": {
+    "@octokit/graphql": "^9.0.3",
+    "@octokit/rest": "^22.0.1",
+    "js-yaml": "^4.1.1"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^25.5.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.0"
+  }
+}

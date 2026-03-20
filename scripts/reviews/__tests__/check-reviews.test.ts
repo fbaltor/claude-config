@@ -8,7 +8,7 @@ import {
   rerunFailedChecks,
   type AiCheckRun,
   type CheckStatusResult,
-} from "../check-reviews.js";
+} from "../src/check-reviews.js";
 
 // ---------------------------------------------------------------------------
 // Mock Octokit factory

@@ -6,8 +6,8 @@ import {
   checkLabel,
   formatCheckLine,
   summaryText,
-} from "../check-reviews-renderer.js";
-import type { AiCheckRun, CheckStatusResult } from "../check-reviews.js";
+} from "../src/check-reviews-renderer.js";
+import type { AiCheckRun, CheckStatusResult } from "../src/check-reviews.js";
 
 // ---------------------------------------------------------------------------
 // Helpers

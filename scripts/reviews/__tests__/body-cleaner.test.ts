@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { stripCollapseWrappers, cleanBody } from "../yaml-builder/body-cleaner.js";
+import { stripCollapseWrappers, cleanBody } from "../src/yaml-builder/body-cleaner.js";
 
 // ---------------------------------------------------------------------------
 // K3 — HTML tags with attributes must be stripped

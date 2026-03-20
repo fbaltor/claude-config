@@ -80,15 +80,15 @@ function makePollOctokit(sequence: MockCheckRun[][]) {
 // Tests
 // ---------------------------------------------------------------------------
 
-type WaitFn = typeof import("../check-reviews.js").waitForCompletion;
-type NoopFn = typeof import("../check-reviews-renderer.js").createNoopRenderer;
+type WaitFn = typeof import("../src/check-reviews.js").waitForCompletion;
+type NoopFn = typeof import("../src/check-reviews-renderer.js").createNoopRenderer;
 let waitForCompletion: WaitFn;
 let createNoopRenderer: NoopFn;
 
 describe("waitForCompletion", () => {
   before(async () => {
-    const mod = await import("../check-reviews.js");
-    const rendererMod = await import("../check-reviews-renderer.js");
+    const mod = await import("../src/check-reviews.js");
+    const rendererMod = await import("../src/check-reviews-renderer.js");
     waitForCompletion = mod.waitForCompletion;
     createNoopRenderer = rendererMod.createNoopRenderer;
   });

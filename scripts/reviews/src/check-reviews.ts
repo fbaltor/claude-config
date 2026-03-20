@@ -1,16 +1,9 @@
 /**
- * Checks the status of AI review bot check runs on a GitHub PR.
- *
- * Usage:
- *   pnpm check-reviews [--pr <number>] [--wait] [--rerun]
- *
- * If --pr is omitted, the script tries to detect the PR from the current branch.
- * Requires: `gh` CLI authenticated with repo access, or GITHUB_TOKEN env var.
+ * Library functions for checking the status of AI review bot check runs.
  */
 
 import { execFileSync } from "node:child_process";
 import { Octokit } from "@octokit/rest";
-import { getGitHubToken, parseCommonArgs } from "./cli-utils.js";
 import { AI_REVIEWERS } from "./shared.js";
 import type { StatusRenderer } from "./check-reviews-renderer.js";
 import { createRenderer } from "./check-reviews-renderer.js";
@@ -35,14 +28,6 @@ export interface CheckStatusResult {
   checks: AiCheckRun[];
   allCompleted: boolean;
   anyFailed: boolean;
-}
-
-interface StatusCliArgs {
-  pr: number;
-  owner: string;
-  repo: string;
-  wait: boolean;
-  rerun: boolean;
 }
 
 export interface WaitOptions {
@@ -276,75 +261,4 @@ export async function waitForCompletion(
 
   console.error("Timeout: AI reviews did not complete within the time limit.");
   return result;
-}
-
-// ---------------------------------------------------------------------------
-// CLI
-// ---------------------------------------------------------------------------
-
-function printHelp(): never {
-  console.log(`Usage: pnpm check-reviews [options]
-
-Checks the status of AI review bot checks on a GitHub PR.
-
-Options:
-  --pr <number>      PR number (auto-detects from current branch if omitted)
-  --repo owner/repo  Target repository (default: Jumpstart-Immigration/jumpstart)
-  --wait             Poll until all AI reviews complete (30s interval, 10m timeout)
-  --rerun            Re-trigger any failed check runs
-  --help             Show this help message
-
-Examples:
-  pnpm check-reviews
-  pnpm check-reviews --wait
-  pnpm check-reviews --rerun
-  pnpm check-reviews --wait --rerun
-  pnpm check-reviews --pr 50`);
-  process.exit(0);
-}
-
-function parseStatusArgs(): StatusCliArgs {
-  const args = process.argv.slice(2);
-  if (args.includes("--help")) printHelp();
-
-  const common = parseCommonArgs(args);
-  return {
-    ...common,
-    wait: args.includes("--wait"),
-    rerun: args.includes("--rerun"),
-  };
-}
-
-async function main(): Promise<void> {
-  const { pr, owner, repo, wait, rerun } = parseStatusArgs();
-
-  const octokit = new Octokit({ auth: getGitHubToken() });
-  const renderer = createRenderer();
-
-  if (wait) {
-    const result = await waitForCompletion(octokit, owner, repo, pr, {
-      rerun,
-      renderer,
-    });
-    process.exit(result.allCompleted && !result.anyFailed ? 0 : 1);
-  }
-
-  const result = await getCheckStatus(octokit, owner, repo, pr);
-  renderer.render(result);
-
-  if (rerun && result.anyFailed) {
-    await rerunFailedChecks(octokit, owner, repo, result.checks);
-  }
-
-  if (result.anyFailed) {
-    process.exit(1);
-  }
-}
-
-const isMainModule = process.argv[1]?.endsWith("check-reviews.ts");
-if (isMainModule) {
-  main().catch((err) => {
-    console.error("Fatal error:", err);
-    process.exit(1);
-  });
 }

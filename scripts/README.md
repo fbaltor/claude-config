@@ -4,11 +4,12 @@ Personal scripts used by Claude Code skills and hooks. These live outside any pr
 
 ## Setup
 
-This directory has its own `package.json` and `node_modules/`. After cloning or on a new machine:
+This directory has its own `package.json` and `node_modules/`. Sub-packages (like `reviews/`) have their own as well. After cloning or on a new machine:
 
 ```bash
 cd ~/.claude/scripts
 npm install
+cd reviews && npm install
 ```
 
 ## Dependency management
@@ -17,12 +18,72 @@ Scripts here import npm packages (e.g. `@linear/sdk`). Dependencies are declared
 
 **Do NOT install these dependencies in project repos.** The skill invocations use absolute paths (`$HOME/.claude/scripts/...`), so Node resolution finds `~/.claude/scripts/node_modules/` regardless of the project's working directory.
 
+Sub-packages (like `reviews/`) have their own `package.json` and `node_modules/`. The parent `package.json` delegates to them via `npm --prefix`.
+
 To add a new dependency:
 
 ```bash
+# Root-level scripts (e.g. linear-fetch.ts)
 cd ~/.claude/scripts
 npm install <package>
+
+# Sub-packages (e.g. reviews/)
+cd ~/.claude/scripts/reviews
+npm install <package>
 ```
+
+## Sub-packages
+
+### `reviews/` — `pr-review-fetcher`
+
+Self-contained package for fetching and analyzing PR review comments from GitHub. Structured as a future-publishable NPM package with its own `package.json`, `tsconfig.json`, and dependencies.
+
+**Setup:**
+
+```bash
+cd ~/.claude/scripts/reviews
+npm install
+```
+
+**Structure:**
+
+- `src/` — library code (importable API)
+  - `src/index.ts` — barrel export (public API)
+  - `src/fetch-reviews.ts` — fetches reviews, threads, comments via GitHub GraphQL
+  - `src/check-reviews.ts` — checks AI review bot status, polling, re-runs
+  - `src/check-reviews-renderer.ts` — terminal/plain text display layer
+  - `src/shared.ts` — shared types and utilities
+  - `src/cli-utils.ts` — CLI argument parsing and GitHub token management
+  - `src/queries/` — GraphQL query documents
+  - `src/yaml-builder/` — structured YAML output with bot-specific parsers
+- `src/cli/` — CLI entry points
+  - `src/cli/fetch-reviews.ts` — fetch and save PR review comments
+  - `src/cli/check-reviews.ts` — check AI review bot status
+- `__tests__/` — test suite (103 tests, Node.js native test runner)
+
+**Usage (direct):**
+
+```bash
+cd ~/.claude/scripts/reviews
+npm run fetch-reviews -- --pr 39
+npm run check-reviews -- --pr 39 --wait
+npm test
+```
+
+**Usage (from parent):**
+
+```bash
+cd ~/.claude/scripts
+npm run fetch-reviews -- --pr 39
+npm run test:reviews
+```
+
+**Invoked by:** `.claude/skills/triage-reviews/SKILL.md` in any project repo, via:
+```
+npx tsx "$HOME/.claude/scripts/reviews/src/cli/fetch-reviews.ts" --pr PR --repo OWNER/REPO
+```
+
+**Requires:** `GITHUB_TOKEN` env var or `gh` CLI authenticated with repo access.
 
 ## Scripts
 
