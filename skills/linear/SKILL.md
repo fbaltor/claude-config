@@ -1,6 +1,6 @@
 ---
 description: Fetch and interact with Linear issues and projects
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 ## Linear context

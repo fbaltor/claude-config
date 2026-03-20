@@ -19,6 +19,10 @@ node_modules
 !skills/
 !skills/**
 
+# Track hooks
+!hooks/
+!hooks/**
+
 # Track statusline
 !statusline.sh
 

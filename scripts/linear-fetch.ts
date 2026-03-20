@@ -11,42 +11,16 @@
  * Requires LINEAR_API_KEY environment variable.
  */
 
-import { LinearClient } from "@linear/sdk";
-import { execSync } from "node:child_process";
-
-function getClient(): LinearClient {
-  const apiKey = process.env.LINEAR_API_KEY_READ ?? process.env.LINEAR_API_KEY;
-  if (!apiKey) {
-    console.error("LINEAR_API_KEY_READ (or LINEAR_API_KEY) not set.");
-    process.exit(1);
-  }
-  return new LinearClient({ apiKey });
-}
-
-function getCurrentBranch(): string | null {
-  try {
-    return execSync("git branch --show-current", {
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "ignore"],
-    }).trim();
-  } catch {
-    return null;
-  }
-}
-
-function parseIssueId(branch: string): string | null {
-  const match = branch.match(/(jump|goj)-\d+/i);
-  return match ? match[0].toUpperCase() : null;
-}
+import { getClient, getCurrentBranch, parseIssueId } from "./lib/linear.ts";
 
 async function fetchIssue(identifier: string): Promise<void> {
-  const client = getClient();
   const match = identifier.match(/^([A-Z]+)-(\d+)$/);
   if (!match) {
     console.log(`Invalid identifier format: \`${identifier}\``);
     return;
   }
   const [, teamKey, numberStr] = match;
+  const client = getClient("read");
   const result = await client.issues({
     filter: {
       team: { key: { eq: teamKey } },
@@ -80,7 +54,7 @@ async function fetchIssue(identifier: string): Promise<void> {
 }
 
 async function fetchProject(name: string): Promise<void> {
-  const client = getClient();
+  const client = getClient("read");
   const projects = await client.projects({
     filter: { name: { containsIgnoreCase: name } },
     first: 1,

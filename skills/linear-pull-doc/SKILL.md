@@ -1,6 +1,6 @@
 ---
 description: Pull a Linear document into a local markdown file (one-way sync, Linear → git)
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 ## Pull result

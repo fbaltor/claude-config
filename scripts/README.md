@@ -85,6 +85,19 @@ npx tsx "$HOME/.claude/scripts/reviews/src/cli/fetch-reviews.ts" --pr PR --repo 
 
 **Requires:** `GITHUB_TOKEN` env var or `gh` CLI authenticated with repo access.
 
+## Shared library
+
+### `lib/linear.ts`
+
+Shared Linear utilities imported by scripts and hooks. Contains:
+
+- **Client:** `getClient("read" | "write")` — creates a `LinearClient` from `LINEAR_API_KEY_READ`/`LINEAR_API_KEY_ALL` env vars
+- **Frontmatter:** `parseFrontmatter()`, `buildFrontmatter()` — YAML frontmatter parsing for Linear-linked markdown files
+- **Sync banner:** `buildSyncBanner()`, `stripSyncBanner()` — the "source of truth" banner prepended to Linear documents
+- **Git:** `getCurrentBranch()`, `parseIssueId(branch)` — branch name parsing for `JUMP-*`/`GOJ-*` patterns
+- **Doc sync:** `findLinearLinkedDocs(cwd)`, `checkDocSync(cwd, doc)` — find and compare Linear-linked docs
+- **Issue status:** `updateIssueStatus(identifier, statusName)` — update a Linear issue's workflow state
+
 ## Scripts
 
 ### `linear-fetch.ts`
@@ -98,12 +111,45 @@ Fetches Linear issues and projects for the `/linear` Claude Code skill.
 - `/linear --fetch-issue JUMP-28` -- fetches a specific issue
 - `/linear --fetch-project <name>` -- fetches project overview with issues and docs
 
-**Invoked by:** `.claude/skills/linear/SKILL.md` in any project repo, via:
+**Invoked by:** `~/.claude/skills/linear/SKILL.md`, via:
 ```
 !`npx tsx "$HOME/.claude/scripts/linear-fetch.ts" $ARGUMENTS`
 ```
 
-**Issues resolved (2026-03-19):**
+### `linear-doc-sync.ts`
+
+Syncs markdown files with Linear documents (bidirectional, one direction at a time).
+
+**Requires:** `LINEAR_API_KEY_ALL` (push) or `LINEAR_API_KEY_READ` (pull) environment variable.
+
+**Usage (via skill):**
+- `/linear-push-doc <file_path>` -- push local file to its linked Linear document
+- `/linear-pull-doc <file_path>` -- pull Linear document into local file
+- `/linear-pull-doc <file_path> --id <doc_id>` -- initial pull with explicit document ID
+
+Files must have YAML frontmatter with `linear_document_id: <uuid>` to link to a Linear document.
+
+**Invoked by:** `~/.claude/skills/linear-push-doc/SKILL.md` and `~/.claude/skills/linear-pull-doc/SKILL.md`.
+
+## Hooks
+
+Hooks are TypeScript scripts in `~/.claude/hooks/` that run automatically via Claude Code's hook system (configured in `~/.claude/settings.json`).
+
+### `hooks/pre-pr-check-doc-sync.ts`
+
+**Event:** `PreToolUse` on `Bash` (filtered to `gh pr create` commands)
+
+Checks if all Linear-linked markdown files (those with `linear_document_id` in frontmatter) are in sync with their remote Linear documents. **Blocks** the PR creation (exit 2) if any are out of sync, prompting to run `/linear-push-doc` first.
+
+### `hooks/post-pr-update-linear-status.ts`
+
+**Event:** `PostToolUse` on `Bash` (filtered to successful `gh pr create` commands)
+
+After a PR is created, extracts the Linear issue ID from the current branch name and updates the issue status to "Code review".
+
+## Issues resolved
+
+### 2026-03-19: Linear skill setup
 
 1. **`$CLAUDE_PROJECT_DIR` not available** -- The skill originally used `$CLAUDE_PROJECT_DIR/.claude/scripts/linear-fetch.ts` but that env var resolves to empty in skill shell commands. Fixed by using `$HOME/.claude/scripts/` with an absolute path.
 

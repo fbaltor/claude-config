@@ -17,57 +17,15 @@
  *   LINEAR_API_KEY_ALL   — read+write (used for push)
  */
 
-import { LinearClient } from "@linear/sdk";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
-
-const SYNC_BANNER_PATTERN = /^> \*\*Source of truth:\*\*[^\n]*\n\n---\n\n/;
-
-function getClient(scope: "read" | "write"): LinearClient {
-  const envVar = scope === "write" ? "LINEAR_API_KEY_ALL" : "LINEAR_API_KEY_READ";
-  const apiKey = process.env[envVar] ?? process.env.LINEAR_API_KEY;
-  if (!apiKey) {
-    console.error(`${envVar} (or LINEAR_API_KEY) not set.`);
-    process.exit(1);
-  }
-  return new LinearClient({ apiKey });
-}
-
-interface Frontmatter {
-  data: Record<string, string>;
-  body: string;
-}
-
-function parseFrontmatter(content: string): Frontmatter {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-  if (!match) return { data: {}, body: content };
-
-  const data: Record<string, string> = {};
-  for (const line of match[1].split("\n")) {
-    const colonIdx = line.indexOf(":");
-    if (colonIdx > 0) {
-      data[line.slice(0, colonIdx).trim()] = line.slice(colonIdx + 1).trim();
-    }
-  }
-  return { data, body: match[2].replace(/^\n/, "") };
-}
-
-function buildFrontmatter(data: Record<string, string>, body: string): string {
-  const lines = Object.entries(data).map(([k, v]) => `${k}: ${v}`);
-  return `---\n${lines.join("\n")}\n---\n\n${body}`;
-}
-
-function buildSyncBanner(filePath: string): string {
-  const repoUrl = `https://github.com/Jumpstart-Immigration/jumpstart/blob/main/${filePath}`;
-  return (
-    `> **Source of truth:** [\`${filePath}\`](${repoUrl}) in the \`jumpstart\` repo. ` +
-    `This Linear document is auto-synced — edit the git version first.\n\n---\n\n`
-  );
-}
-
-function stripSyncBanner(content: string): string {
-  return content.replace(SYNC_BANNER_PATTERN, "");
-}
+import {
+  getClient,
+  parseFrontmatter,
+  buildFrontmatter,
+  buildSyncBanner,
+  stripSyncBanner,
+} from "./lib/linear.ts";
 
 async function push(filePath: string): Promise<void> {
   const absPath = resolve(filePath);
