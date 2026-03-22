@@ -61,7 +61,7 @@
     "deny": [
       "Bash(sudo *)",
       "Bash(su *)",
-      "Bash(chmod *)",
+      "Bash(chmod -R 777 *)",
       "Bash(chown *)"
     ]
   },
