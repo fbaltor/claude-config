@@ -8,11 +8,13 @@
   },
   "bin": {
     "fetch-reviews": "./src/cli/fetch-reviews.ts",
-    "check-reviews": "./src/cli/check-reviews.ts"
+    "check-reviews": "./src/cli/check-reviews.ts",
+    "resolve-threads": "./src/cli/resolve-threads.ts"
   },
   "scripts": {
     "fetch-reviews": "tsx src/cli/fetch-reviews.ts",
     "check-reviews": "tsx src/cli/check-reviews.ts",
+    "resolve-threads": "tsx src/cli/resolve-threads.ts",
     "test": "node --import tsx --experimental-test-module-mocks --test __tests__/*.test.ts",
     "build": "tsc",
     "prepublishOnly": "npm run build && cp -r src/queries dist/queries"

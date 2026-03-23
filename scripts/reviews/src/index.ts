@@ -51,4 +51,13 @@ export {
   buildYamlOutput,
 } from "./yaml-builder/index.js";
 
+export {
+  type UnresolvedThread,
+  type ResolveResult,
+  fetchUnresolvedThreads,
+  replyToComment,
+  resolveThread,
+  replyAndResolve,
+} from "./resolve-threads.js";
+
 export { getGitHubToken, parseCommonArgs } from "./cli-utils.js";
