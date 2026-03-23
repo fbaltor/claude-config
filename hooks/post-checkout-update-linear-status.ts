@@ -7,7 +7,21 @@
  * git checkout/switch commands. Extracts the issue ID from the new branch name.
  */
 
+import { appendFileSync } from "node:fs";
 import { getCurrentBranch, parseIssueId, updateIssueStatus } from "../scripts/lib/linear.ts";
+
+const LOG_FILE = `${process.env.HOME}/.claude/hooks/hook-debug.log`;
+
+function log(msg: string): void {
+  const ts = new Date().toISOString();
+  const line = `[${ts}] post-checkout: ${msg}\n`;
+  process.stderr.write(line);
+  try {
+    appendFileSync(LOG_FILE, line);
+  } catch {
+    // ignore write errors
+  }
+}
 
 interface HookInput {
   tool_input: { command: string };
@@ -29,30 +43,34 @@ async function main(): Promise<void> {
     process.exit(0);
   }
   if (input.tool_response.exitCode !== 0) {
+    log(`skipped: exit code ${input.tool_response.exitCode}`);
     process.exit(0);
   }
 
   const branch = getCurrentBranch();
   if (!branch) {
+    log("skipped: no branch");
     process.exit(0);
   }
 
   const issueId = parseIssueId(branch);
   if (!issueId) {
+    log(`skipped: no issue ID in branch "${branch}"`);
     process.exit(0);
   }
 
+  log(`updating ${issueId} → Desenvolvimento...`);
   const result = await updateIssueStatus(issueId, "Desenvolvimento");
   if (result.success) {
-    process.stderr.write(`Linear: ${result.message}\n`);
+    log(result.message);
   } else {
-    process.stderr.write(`Linear status update failed: ${result.message}\n`);
+    log(`FAILED: ${result.message}`);
   }
 
   process.exit(0);
 }
 
 main().catch((err) => {
-  process.stderr.write(`Hook error: ${err.message}\n`);
+  log(`ERROR: ${err.message}`);
   process.exit(0); // Don't block on hook errors
 });
