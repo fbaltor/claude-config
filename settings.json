@@ -86,6 +86,11 @@
             "type": "command",
             "command": "npx tsx ~/.claude/hooks/post-pr-update-linear-status.ts",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "npx tsx ~/.claude/hooks/post-checkout-update-linear-status.ts",
+            "timeout": 15
           }
         ]
       }
