@@ -4,12 +4,22 @@
     "code-simplifier@claude-plugins-official": [
       {
         "scope": "project",
+        "projectPath": "/home/fbaltor/jumpstart/jumpstart",
         "installPath": "/home/fbaltor/.claude/plugins/cache/claude-plugins-official/code-simplifier/1.0.0",
         "version": "1.0.0",
         "installedAt": "2026-02-26T02:48:45.508Z",
         "lastUpdated": "2026-02-26T02:48:45.508Z",
-        "gitCommitSha": "55b58ec6e5649104f926ba7558b567dc8d33c5ff",
-        "projectPath": "/home/fbaltor/jumpstart/jumpstart"
+        "gitCommitSha": "55b58ec6e5649104f926ba7558b567dc8d33c5ff"
+      }
+    ],
+    "vercel@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "/home/fbaltor/.claude/plugins/cache/claude-plugins-official/vercel/2e79fc9698b0",
+        "version": "2e79fc9698b0",
+        "installedAt": "2026-03-24T18:19:27.900Z",
+        "lastUpdated": "2026-03-24T18:19:27.900Z",
+        "gitCommitSha": "2e79fc9698b0f25253a238f4ac5ab6d3265d266d"
       }
     ]
   }

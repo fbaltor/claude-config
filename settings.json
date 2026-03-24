@@ -103,10 +103,11 @@
     "command": "/home/fbaltor/.claude/statusline.sh"
   },
   "enabledPlugins": {
-    "code-simplifier@claude-plugins-official": true
+    "code-simplifier@claude-plugins-official": true,
+    "vercel@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
-  "autoMemoryEnabled": true,
-  "plansDirectory": "/home/fbaltor/.claude/plans"
+  "plansDirectory": "/home/fbaltor/.claude/plans",
+  "autoMemoryEnabled": true
 }
