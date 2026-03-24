@@ -57,7 +57,7 @@ The official docs may not match reality. The types below were captured from the 
 ## Pull Requests
 
 - Always create PRs as **draft** (`gh pr create --draft`).
-- For PR review operations (fetching, triaging, resolving threads), always use the scripts at `~/.claude/scripts/reviews/src/cli/`. Never write raw `gh api graphql` queries for review thread operations. Available scripts: `fetch-reviews.ts`, `check-reviews.ts`, `resolve-threads.ts`.
+- For PR review operations (fetching, triaging, resolving threads), always use the review scripts via `npm --prefix ~/.claude/scripts/reviews run <script> -- <args>`. Never write raw `gh api graphql` queries for review thread operations. Available scripts: `fetch-reviews`, `check-reviews`, `resolve-threads`.
 
 ## Linear Document Sync
 

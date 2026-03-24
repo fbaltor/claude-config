@@ -9,6 +9,14 @@ allowed-tools: [Read, Bash, Grep, Glob]
 
 Fetch all review comments from a GitHub PR via the review scripts, read the relevant source code, and classify each comment as **false positive**, **minor**, or **major**. Outdated comments are presented separately.
 
+## Script invocation convention
+
+All review scripts are invoked via `npm run` from the scripts directory. This uses the local `tsx` from `node_modules/.bin/` instead of relying on a global install. Pass script arguments after `--`:
+
+```bash
+npm --prefix ~/.claude/scripts/reviews run <script-name> -- <args>
+```
+
 ## Step 1 — Resolve arguments
 
 Parse `$ARGUMENTS` for:
@@ -22,7 +30,7 @@ Parse `$ARGUMENTS` for:
 ### Without `--wait`:
 
 ```bash
-npx tsx "$HOME/.claude/scripts/reviews/src/cli/fetch-reviews.ts" --pr PR --repo OWNER/REPO
+npm --prefix ~/.claude/scripts/reviews run fetch-reviews -- --pr PR --repo OWNER/REPO
 ```
 
 ### With `--wait`:
@@ -30,7 +38,7 @@ npx tsx "$HOME/.claude/scripts/reviews/src/cli/fetch-reviews.ts" --pr PR --repo 
 Run the fetch command with `--wait` using the Bash tool with `run_in_background: true`:
 
 ```bash
-npx tsx "$HOME/.claude/scripts/reviews/src/cli/fetch-reviews.ts" --wait --pr PR --repo OWNER/REPO
+npm --prefix ~/.claude/scripts/reviews run fetch-reviews -- --wait --pr PR --repo OWNER/REPO
 ```
 
 Tell the user: "Waiting for bot reviews to complete. I'll proceed with triage when ready."
@@ -134,38 +142,38 @@ After the triage, ask: **"Which items would you like to tackle?"**
 
 ## Step 7 — Resolve threads (after fixes are applied)
 
-When the user asks to resolve/close review comments after fixing the issues, use the `resolve-threads.ts` script. **Never use raw `gh api graphql` mutations for resolving threads.**
+When the user asks to resolve/close review comments after fixing the issues, use the `resolve-threads` script. **Never use raw `gh api graphql` mutations for resolving threads.**
 
 ### List unresolved threads
 
 ```bash
-npx tsx "$HOME/.claude/scripts/reviews/src/cli/resolve-threads.ts" --pr PR --list
+npm --prefix ~/.claude/scripts/reviews run resolve-threads -- --pr PR --list
 ```
 
 ### Resolve all threads
 
 ```bash
-npx tsx "$HOME/.claude/scripts/reviews/src/cli/resolve-threads.ts" --pr PR --all
+npm --prefix ~/.claude/scripts/reviews run resolve-threads -- --pr PR --all
 ```
 
 ### Resolve all with a reply
 
 ```bash
-npx tsx "$HOME/.claude/scripts/reviews/src/cli/resolve-threads.ts" --pr PR --all --reply "Fixed in <commit-sha>"
+npm --prefix ~/.claude/scripts/reviews run resolve-threads -- --pr PR --all --reply "Fixed in <commit-sha>"
 ```
 
 ### Resolve specific threads
 
 ```bash
-npx tsx "$HOME/.claude/scripts/reviews/src/cli/resolve-threads.ts" --pr PR --thread PRRT_abc123 --thread PRRT_def456
+npm --prefix ~/.claude/scripts/reviews run resolve-threads -- --pr PR --thread PRRT_abc123 --thread PRRT_def456
 ```
 
 ### Available scripts reference
 
-All review scripts live at `~/.claude/scripts/reviews/src/cli/`:
+All review scripts live at `~/.claude/scripts/reviews/` with npm scripts defined in `package.json`:
 
-| Script | Purpose |
-|--------|---------|
-| `fetch-reviews.ts` | Fetch and parse PR review comments into structured YAML/JSON |
-| `check-reviews.ts` | Check if bot reviews are complete |
-| `resolve-threads.ts` | List, resolve, and optionally reply to review threads |
+| npm script | Purpose |
+|------------|---------|
+| `fetch-reviews` | Fetch and parse PR review comments into structured YAML/JSON |
+| `check-reviews` | Check if bot reviews are complete |
+| `resolve-threads` | List, resolve, and optionally reply to review threads |
