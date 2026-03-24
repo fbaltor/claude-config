@@ -5,7 +5,7 @@ disable-model-invocation: false
 
 ## Linear context
 
-!`npx tsx "$HOME/.claude/scripts/linear-fetch.ts" $ARGUMENTS`
+!`npx tsx "$HOME/.claude/scripts/linear-fetch.ts" "$ARGUMENTS"`
 
 ## Instructions
 
