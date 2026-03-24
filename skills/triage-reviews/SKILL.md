@@ -131,3 +131,41 @@ _These comments are on code that has changed since the review. They may or may n
 For review submission comments (non-inline), omit the file path line.
 
 After the triage, ask: **"Which items would you like to tackle?"**
+
+## Step 7 — Resolve threads (after fixes are applied)
+
+When the user asks to resolve/close review comments after fixing the issues, use the `resolve-threads.ts` script. **Never use raw `gh api graphql` mutations for resolving threads.**
+
+### List unresolved threads
+
+```bash
+npx tsx "$HOME/.claude/scripts/reviews/src/cli/resolve-threads.ts" --pr PR --list
+```
+
+### Resolve all threads
+
+```bash
+npx tsx "$HOME/.claude/scripts/reviews/src/cli/resolve-threads.ts" --pr PR --all
+```
+
+### Resolve all with a reply
+
+```bash
+npx tsx "$HOME/.claude/scripts/reviews/src/cli/resolve-threads.ts" --pr PR --all --reply "Fixed in <commit-sha>"
+```
+
+### Resolve specific threads
+
+```bash
+npx tsx "$HOME/.claude/scripts/reviews/src/cli/resolve-threads.ts" --pr PR --thread PRRT_abc123 --thread PRRT_def456
+```
+
+### Available scripts reference
+
+All review scripts live at `~/.claude/scripts/reviews/src/cli/`:
+
+| Script | Purpose |
+|--------|---------|
+| `fetch-reviews.ts` | Fetch and parse PR review comments into structured YAML/JSON |
+| `check-reviews.ts` | Check if bot reviews are complete |
+| `resolve-threads.ts` | List, resolve, and optionally reply to review threads |
