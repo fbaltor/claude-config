@@ -7,59 +7,47 @@
  * git checkout/switch commands. Extracts the issue ID from the new branch name.
  */
 
-import { appendFileSync } from "node:fs";
 import { getCurrentBranch, parseIssueId, updateIssueStatus } from "../scripts/lib/linear.ts";
-import { readHookStdin } from "../scripts/lib/hooks.ts";
+import { readHookStdin, logHook } from "../scripts/lib/hooks.ts";
 
-const LOG_FILE = `${process.env.HOME}/.claude/hooks/hook-debug.log`;
-
-function log(msg: string): void {
-  const ts = new Date().toISOString();
-  const line = `[${ts}] post-checkout: ${msg}\n`;
-  process.stderr.write(line);
-  try {
-    appendFileSync(LOG_FILE, line);
-  } catch {
-    // ignore write errors
-  }
-}
+const TAG = "post-checkout";
 
 async function main(): Promise<void> {
-  const input = await readHookStdin();
+  const input = await readHookStdin(TAG);
 
   // Only trigger on git checkout / git switch commands
   if (!/^\s*git\s+(checkout|switch)\b/.test(input.tool_input.command)) {
     process.exit(0);
   }
   if (input.tool_response.interrupted) {
-    log("skipped: command was interrupted");
+    logHook(TAG, "skipped: command was interrupted");
     process.exit(0);
   }
 
   const branch = getCurrentBranch();
   if (!branch) {
-    log("skipped: no branch");
+    logHook(TAG, "skipped: no branch");
     process.exit(0);
   }
 
   const issueId = parseIssueId(branch);
   if (!issueId) {
-    log(`skipped: no issue ID in branch "${branch}"`);
+    logHook(TAG, `skipped: no issue ID in branch "${branch}"`);
     process.exit(0);
   }
 
-  log(`updating ${issueId} → Desenvolvimento...`);
+  logHook(TAG, `updating ${issueId} → Desenvolvimento...`);
   const result = await updateIssueStatus(issueId, "Desenvolvimento");
   if (result.success) {
-    log(result.message);
+    logHook(TAG, result.message);
   } else {
-    log(`FAILED: ${result.message}`);
+    logHook(TAG, `FAILED: ${result.message}`);
   }
 
   process.exit(0);
 }
 
 main().catch((err) => {
-  log(`ERROR: ${err.message}`);
-  process.exit(0); // Don't block on hook errors
+  logHook(TAG, `ERROR: ${err.message}\n${err.stack ?? ""}`);
+  process.exit(1); // Exit non-zero so the failure is visible
 });

@@ -1,5 +1,53 @@
 # Global Rules
 
+## Hooks
+
+Hooks are configured in `~/.claude/settings.json` under the `hooks` key. Shared types and `readHookStdin()` live in `~/.claude/scripts/lib/hooks.ts`. All hooks are TypeScript, run via `npx tsx`.
+
+### Active hooks
+
+| Event | Matcher | Script | Purpose |
+|---|---|---|---|
+| PreToolUse | Bash | `pre-pr-check-doc-sync.ts` | Blocks `gh pr create` if Linear-linked docs are out of sync |
+| PostToolUse | Bash | `post-checkout-update-linear-status.ts` | Moves Linear issue → "Desenvolvimento" on `git checkout`/`switch` |
+| PostToolUse | Bash | `post-pr-update-linear-status.ts` | Moves Linear issue → "Code review" on `gh pr create` |
+
+### Hook stdin schema (Bash tool, actual format as of 2026-03-24)
+
+The official docs may not match reality. The types below were captured from the actual hook runner. If hooks start failing silently, dump stdin with `cat > /tmp/hook-stdin-dump.json` to verify.
+
+```typescript
+// PreToolUse — tool_response is NOT present
+// PostToolUse — all fields present
+{
+  session_id: string;
+  transcript_path: string;
+  cwd: string;
+  permission_mode: string;
+  hook_event_name: "PreToolUse" | "PostToolUse" | "PostToolUseFailure";
+  tool_name: string;
+  tool_use_id: string;
+  tool_input: {
+    command: string;       // the Bash command
+    description?: string;  // the tool call description
+  };
+  tool_response: {         // PostToolUse only
+    stdout: string;
+    stderr: string;
+    interrupted: boolean;
+    isImage: boolean;
+    noOutputExpected: boolean;
+  };
+}
+```
+
+### Error handling convention
+
+- PostToolUse hooks: `process.exit(1)` on unexpected errors — makes failures visible.
+- PreToolUse hooks: `process.exit(0)` on unexpected errors — avoids accidentally blocking tool execution. Exit code 2 is reserved for intentional blocks.
+- All errors log to `~/.claude/hooks/hook-debug.log` via `logHook()` from the shared lib.
+- `readHookStdin()` dumps raw stdin on parse failure for schema change diagnosis.
+
 ## File Organization
 
 - Save research notes, investigation reports, and analysis documents to `/home/fbaltor/.claude/research/` (not the project working directory).

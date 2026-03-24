@@ -12,10 +12,12 @@ import {
   getCurrentBranch,
   parseIssueId,
 } from "../scripts/lib/linear.ts";
-import { readHookStdin } from "../scripts/lib/hooks.ts";
+import { readHookStdin, logHook } from "../scripts/lib/hooks.ts";
+
+const TAG = "pre-pr-doc-sync";
 
 async function main(): Promise<void> {
-  const input = await readHookStdin();
+  const input = await readHookStdin(TAG);
 
   // Only trigger when the command itself is `gh pr create`, not when the string
   // appears inside arguments (e.g. a commit message mentioning "gh pr create")
@@ -55,6 +57,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  process.stderr.write(`Hook error: ${err.message}\n`);
-  process.exit(0); // Don't block on hook errors
+  logHook(TAG, `ERROR: ${err.message}\n${err.stack ?? ""}`);
+  // PreToolUse: exit 0 on unexpected errors to avoid blocking tool execution
+  process.exit(0);
 });

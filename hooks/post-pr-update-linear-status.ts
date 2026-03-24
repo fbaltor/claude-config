@@ -7,10 +7,12 @@
  */
 
 import { getCurrentBranch, parseIssueId, updateIssueStatus } from "../scripts/lib/linear.ts";
-import { readHookStdin } from "../scripts/lib/hooks.ts";
+import { readHookStdin, logHook } from "../scripts/lib/hooks.ts";
+
+const TAG = "post-pr";
 
 async function main(): Promise<void> {
-  const input = await readHookStdin();
+  const input = await readHookStdin(TAG);
 
   // Only trigger when the command itself is `gh pr create`
   if (!/^\s*gh\s+pr\s+create\b/.test(input.tool_input.command)) {
@@ -31,17 +33,18 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
+  logHook(TAG, `updating ${issueId} → Code review...`);
   const result = await updateIssueStatus(issueId, "Code review");
   if (result.success) {
-    process.stderr.write(`Linear: ${result.message}\n`);
+    logHook(TAG, result.message);
   } else {
-    process.stderr.write(`Linear status update failed: ${result.message}\n`);
+    logHook(TAG, `FAILED: ${result.message}`);
   }
 
   process.exit(0);
 }
 
 main().catch((err) => {
-  process.stderr.write(`Hook error: ${err.message}\n`);
-  process.exit(0); // Don't block on hook errors
+  logHook(TAG, `ERROR: ${err.message}\n${err.stack ?? ""}`);
+  process.exit(1); // Exit non-zero so the failure is visible
 });
