@@ -7,27 +7,16 @@
  */
 
 import { getCurrentBranch, parseIssueId, updateIssueStatus } from "../scripts/lib/linear.ts";
-
-interface HookInput {
-  tool_input: { command: string };
-  tool_response: { output: string; exitCode: number };
-  cwd: string;
-}
+import { readHookStdin } from "../scripts/lib/hooks.ts";
 
 async function main(): Promise<void> {
-  const raw = await new Promise<string>((resolve) => {
-    let data = "";
-    process.stdin.on("data", (chunk) => (data += chunk));
-    process.stdin.on("end", () => resolve(data));
-  });
-
-  const input: HookInput = JSON.parse(raw);
+  const input = await readHookStdin();
 
   // Only trigger when the command itself is `gh pr create`
   if (!/^\s*gh\s+pr\s+create\b/.test(input.tool_input.command)) {
     process.exit(0);
   }
-  if (input.tool_response.exitCode !== 0) {
+  if (input.tool_response.interrupted) {
     process.exit(0);
   }
 

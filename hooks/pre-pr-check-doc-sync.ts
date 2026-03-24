@@ -12,20 +12,10 @@ import {
   getCurrentBranch,
   parseIssueId,
 } from "../scripts/lib/linear.ts";
-
-interface HookInput {
-  tool_input: { command: string };
-  cwd: string;
-}
+import { readHookStdin } from "../scripts/lib/hooks.ts";
 
 async function main(): Promise<void> {
-  const raw = await new Promise<string>((resolve) => {
-    let data = "";
-    process.stdin.on("data", (chunk) => (data += chunk));
-    process.stdin.on("end", () => resolve(data));
-  });
-
-  const input: HookInput = JSON.parse(raw);
+  const input = await readHookStdin();
 
   // Only trigger when the command itself is `gh pr create`, not when the string
   // appears inside arguments (e.g. a commit message mentioning "gh pr create")

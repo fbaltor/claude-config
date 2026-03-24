@@ -9,6 +9,7 @@
 
 import { appendFileSync } from "node:fs";
 import { getCurrentBranch, parseIssueId, updateIssueStatus } from "../scripts/lib/linear.ts";
+import { readHookStdin } from "../scripts/lib/hooks.ts";
 
 const LOG_FILE = `${process.env.HOME}/.claude/hooks/hook-debug.log`;
 
@@ -23,27 +24,15 @@ function log(msg: string): void {
   }
 }
 
-interface HookInput {
-  tool_input: { command: string };
-  tool_response: { output: string; exitCode: number };
-  cwd: string;
-}
-
 async function main(): Promise<void> {
-  const raw = await new Promise<string>((resolve) => {
-    let data = "";
-    process.stdin.on("data", (chunk) => (data += chunk));
-    process.stdin.on("end", () => resolve(data));
-  });
-
-  const input: HookInput = JSON.parse(raw);
+  const input = await readHookStdin();
 
   // Only trigger on git checkout / git switch commands
   if (!/^\s*git\s+(checkout|switch)\b/.test(input.tool_input.command)) {
     process.exit(0);
   }
-  if (input.tool_response.exitCode !== 0) {
-    log(`skipped: exit code ${input.tool_response.exitCode}`);
+  if (input.tool_response.interrupted) {
+    log("skipped: command was interrupted");
     process.exit(0);
   }
 
