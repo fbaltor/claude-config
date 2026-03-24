@@ -15,8 +15,8 @@ const TAG = "post-checkout";
 async function main(): Promise<void> {
   const input = await readHookStdin(TAG);
 
-  // Only trigger on git checkout / git switch commands
-  if (!/^\s*git\s+(checkout|switch)\b/.test(input.tool_input.command)) {
+  // Only trigger on new branch creation (git checkout -b / git switch -c)
+  if (!/^\s*git\s+(checkout\s+-b|switch\s+(-c|--create))\b/.test(input.tool_input.command)) {
     process.exit(0);
   }
   if (input.tool_response.interrupted) {
