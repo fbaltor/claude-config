@@ -22,6 +22,7 @@ node_modules
 # Track hooks
 !hooks/
 !hooks/**
+hooks/hook-debug.log
 
 # Track statusline
 !statusline.sh
