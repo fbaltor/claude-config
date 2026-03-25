@@ -92,53 +92,71 @@ Guidelines:
 
 ## Step 6 — Present triage
 
-Output the triage in this format:
+### ID format
+
+Each issue gets a unique ID: `<reviewer>/<severity>-<n>`, where:
+- **reviewer** — abbreviated: `cp` (Copilot), `cr` (CodeRabbit), `va` (Vercel Agent), or first 2–3 letters of a human reviewer's GitHub username
+- **severity** — `crit`, `high`, `med`, `min`, `fp` (false positive)
+- **n** — sequential per reviewer+severity pair (e.g., `cp/med-1`, `cp/med-2`)
+
+### Output format
 
 ```
 ## PR Review Triage
 
 **PR #N**: title
-**Reviewers**: @alice, @copilot[bot], @coderabbitai[bot]
-**Stats**: X major | Y minor | Z false positives | W outdated | V resolved (skipped)
+**Reviewers**: @alice (al), @copilot[bot] (cp), @coderabbitai[bot] (cr)
+**Stats**: X high | Y medium | Z minor | W false positives | V outdated | U resolved (skipped)
 
 ---
 
-### Major (X)
+### Issues
 
-1. **Short description** — @reviewer
-   `file/path.ts:42` · [link](comment-url)
-   > Reviewer's comment (first ~3 lines)
+**cp/min-1** 🟡 **Short description** · `file/path.ts:15` · [link](comment-url)
+   Reviewer's comment (first ~3 lines).
+   → _Assessment: brief note._
 
-   **Assessment**: Why this is major and what needs to change.
+**cp/med-1** 🟠 **Short description** · `file/path.ts:42` · [link](comment-url)
+   Reviewer's comment (first ~3 lines).
+   → _Assessment: why this matters and what needs to change._
 
-### Minor (Y)
+**cr/high-1** 🔴 **Short description** · `file/path.ts:88` · [link](comment-url)
+   Reviewer's comment (first ~3 lines).
+   → _Assessment: why this is high severity._
 
-1. **Short description** — @reviewer
-   `file/path.ts:15` · [link](comment-url)
-   > Reviewer's comment
+**cp/fp-1** ⚪ **Short description** · `file/path.ts:20` · [link](comment-url)
+   Reviewer's comment.
+   → _Assessment: why this is a false positive._
 
-   **Assessment**: Brief note.
-
-### False Positives (Z)
-
-1. **Short description** — @reviewer
-   `file/path.ts:88` · [link](comment-url)
-   > Reviewer's comment
-
-   **Assessment**: Why this is a false positive.
-
-### Outdated (W)
+### Outdated
 
 _These comments are on code that has changed since the review. They may or may not still be relevant._
 
-1. **Short description** — @reviewer
-   `file/path.ts:20` · [link](comment-url) · `[outdated]`
-   > Reviewer's comment
+**cr/med-2** 🟠 **Short description** · `file/path.ts:20` · [link](comment-url) · `[outdated]`
+   Reviewer's comment.
+
+---
+
+## Summary
+
+| ID         | Severity    | Issue              | File                |
+|------------|-------------|--------------------|---------------------|
+| cr/high-1  | 🔴 High     | Short description  | `file/path.ts:88`   |
+| cp/med-1   | 🟠 Medium   | Short description  | `file/path.ts:42`   |
+| cp/min-1   | 🟡 Minor    | Short description  | `file/path.ts:15`   |
+| cp/fp-1    | ⚪ False pos | Short description  | `file/path.ts:20`   |
+
+## Suggested action
+
+Fix **cr/high-1** first — reason. Then **cp/med-1** — reason.
+**cp/min-1** is optional cleanup. **cp/fp-1** can be dismissed.
 ```
 
-For review submission comments (non-inline), omit the file path line.
+Severity ordering in summary table: crit → high → med → min → fp (most severe first).
 
-After the triage, ask: **"Which items would you like to tackle?"**
+For review submission comments (non-inline), omit the file path.
+
+After the triage, ask: **"Which items would you like to tackle? (use IDs, e.g. `cp/med-1`)"**
 
 ## Step 7 — Resolve threads (after fixes are applied)
 
