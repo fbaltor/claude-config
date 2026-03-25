@@ -48,6 +48,10 @@ The official docs may not match reality. The types below were captured from the 
 - All errors log to `~/.claude/hooks/hook-debug.log` via `logHook()` from the shared lib.
 - `readHookStdin()` dumps raw stdin on parse failure for schema change diagnosis.
 
+## Work Cadence
+
+When a task involves multiple discrete deliverables (e.g., audit → plan → issues), produce one artifact at a time and wait for review before continuing. "Proceed" means "do the next step", not "do everything remaining."
+
 ## File Organization
 
 - Save research notes, investigation reports, and analysis documents to `/home/fbaltor/.claude/research/` (not the project working directory).
