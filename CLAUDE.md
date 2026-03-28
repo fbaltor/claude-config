@@ -2,7 +2,7 @@
 
 ## Hooks
 
-Hooks are configured in `~/.claude/settings.json` under the `hooks` key. Shared types and `readHookStdin()` live in `~/.claude/scripts/lib/hooks.ts`. All hooks are TypeScript, run via `npx tsx`.
+Hooks are configured in `/home/fbaltor/.claude/settings.json` under the `hooks` key. Shared types and `readHookStdin()` live in `/home/fbaltor/.claude/scripts/lib/hooks.ts`. All hooks are TypeScript, run via `npx tsx`.
 
 ### Active hooks
 
@@ -45,7 +45,7 @@ The official docs may not match reality. The types below were captured from the 
 
 - PostToolUse hooks: `process.exit(1)` on unexpected errors — makes failures visible.
 - PreToolUse hooks: `process.exit(0)` on unexpected errors — avoids accidentally blocking tool execution. Exit code 2 is reserved for intentional blocks.
-- All errors log to `~/.claude/hooks/hook-debug.log` via `logHook()` from the shared lib.
+- All errors log to `/home/fbaltor/.claude/hooks/hook-debug.log` via `logHook()` from the shared lib.
 - `readHookStdin()` dumps raw stdin on parse failure for schema change diagnosis.
 
 ## Work Cadence
@@ -54,25 +54,34 @@ When a task involves multiple discrete deliverables (e.g., audit → plan → is
 
 ## File Organization
 
-- Save research notes, investigation reports, and analysis documents to `/home/fbaltor/.claude/research/` (not the project working directory).
 - Save implementation plans to `/home/fbaltor/.claude/plans/`.
+- Save research/investigation documents to `/home/fbaltor/.claude/research/` — but **only when explicitly asked** to create a persistent artifact. By default, present findings inline in the conversation. Don't auto-generate research files.
 - Use descriptive filenames with date prefixes: `YYYY-MM-DD-description.md` (e.g., `2026-03-18-lily-joo-save-error-investigation.md`).
+- Never save plans or research inside the project repo (e.g., `.claude/` within the repo). Always use the global `/home/fbaltor/.claude/` directories.
+
+## Testing
+
+- Design test specifications (behavior-focused, GIVEN/WHEN/THEN) **before** writing test code or implementation.
+- When implementing a refactor or fix, propose the test spec as the first step.
+- Consider using a separate agent to write tests to avoid contamination — the implementer should not see the spec, only the test file + interface. This prevents tests from being biased by knowledge of the implementation.
+- Be comprehensive about edge cases and generate realistic test data.
 
 ## Pull Requests
 
 - Always create PRs as **draft** (`gh pr create --draft`).
-- For PR review operations (fetching, triaging, resolving threads), always use the review scripts via `npm --prefix ~/.claude/scripts/reviews run <script> -- <args>`. Never write raw `gh api graphql` queries for review thread operations. Available scripts: `fetch-reviews`, `check-reviews`, `resolve-threads`.
+- For PR review operations (fetching, triaging, resolving threads), always use the review scripts via `npm --prefix /home/fbaltor/.claude/scripts/reviews run <script> -- <args>`. Never write raw `gh api graphql` queries for review thread operations. Available scripts: `fetch-reviews`, `check-reviews`, `resolve-threads`.
+- Review triage uses `<reviewer>/<severity>-<n>` IDs (e.g., `cp/med-1`, `cr/high-2`). Reviewers: `cp` (Copilot), `cr` (CodeRabbit), `va` (Vercel Agent), human = first 2-3 letters. Severity: `crit`, `high`, `med`, `min`, `fp`. Format is codified in `/home/fbaltor/.claude/skills/triage-reviews/SKILL.md`.
 
 ## Diagrams
 
 NEVER hand-write ASCII/Unicode box-drawing diagrams. Always use the mermaid-to-ascii pipeline:
 
 1. Write the diagram in mermaid syntax (in a ```mermaid block inside a .md file)
-2. Preview: `npx tsx ~/.claude/scripts/mermaid-to-ascii.ts <file.md>`
-3. Convert in-place: `npx tsx ~/.claude/scripts/mermaid-to-ascii.ts <file.md> --write`
+2. Preview: `npx tsx /home/fbaltor/.claude/scripts/mermaid-to-ascii.ts <file.md>`
+3. Convert in-place: `npx tsx /home/fbaltor/.claude/scripts/mermaid-to-ascii.ts <file.md> --write`
 
-The script replaces ```mermaid blocks with rendered ASCII and appends the original mermaid source as an appendix. Powered by the `beautiful-mermaid` npm package (installed in `~/.claude/scripts/`). Supports: flowcharts, state diagrams, sequence diagrams, class diagrams, ER diagrams, XY charts.
+The script replaces ```mermaid blocks with rendered ASCII and appends the original mermaid source as an appendix. Powered by the `beautiful-mermaid` npm package (installed in `/home/fbaltor/.claude/scripts/`). Supports: flowcharts, state diagrams, sequence diagrams, class diagrams, ER diagrams, XY charts.
 
 ## Linear Document Sync
 
-When asked to update/push/sync a document to Linear, use the `/linear-push-doc` skill with the file path as argument. When asked to pull/fetch a document from Linear, use `/linear-pull-doc`. For fetching issue context from the current branch, use `/linear --fetch-issue`. These skills live at `~/.claude/skills/linear*/SKILL.md`.
+When asked to update/push/sync a document to Linear, use the `/linear-push-doc` skill with the file path as argument. When asked to pull/fetch a document from Linear, use `/linear-pull-doc`. For fetching issue context from the current branch, use `/linear --fetch-issue`. These skills live at `/home/fbaltor/.claude/skills/linear*/SKILL.md`.
