@@ -63,6 +63,16 @@ When a task involves multiple discrete deliverables (e.g., audit → plan → is
 - Always create PRs as **draft** (`gh pr create --draft`).
 - For PR review operations (fetching, triaging, resolving threads), always use the review scripts via `npm --prefix ~/.claude/scripts/reviews run <script> -- <args>`. Never write raw `gh api graphql` queries for review thread operations. Available scripts: `fetch-reviews`, `check-reviews`, `resolve-threads`.
 
+## Diagrams
+
+NEVER hand-write ASCII/Unicode box-drawing diagrams. Always use the mermaid-to-ascii pipeline:
+
+1. Write the diagram in mermaid syntax (in a ```mermaid block inside a .md file)
+2. Preview: `npx tsx ~/.claude/scripts/mermaid-to-ascii.ts <file.md>`
+3. Convert in-place: `npx tsx ~/.claude/scripts/mermaid-to-ascii.ts <file.md> --write`
+
+The script replaces ```mermaid blocks with rendered ASCII and appends the original mermaid source as an appendix. Powered by the `beautiful-mermaid` npm package (installed in `~/.claude/scripts/`). Supports: flowcharts, state diagrams, sequence diagrams, class diagrams, ER diagrams, XY charts.
+
 ## Linear Document Sync
 
 When asked to update/push/sync a document to Linear, use the `/linear-push-doc` skill with the file path as argument. When asked to pull/fetch a document from Linear, use `/linear-pull-doc`. For fetching issue context from the current branch, use `/linear --fetch-issue`. These skills live at `~/.claude/skills/linear*/SKILL.md`.
