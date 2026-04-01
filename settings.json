@@ -6,6 +6,8 @@
       "Edit(//home/fbaltor/.claude/**)",
       "Read(./**)",
       "Edit(./**)",
+      "Read(//tmp/**)",
+      "Edit(//tmp/**)",
       "WebSearch",
       "WebFetch",
       "Bash(*)",
