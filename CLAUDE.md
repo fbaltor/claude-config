@@ -68,7 +68,7 @@ When a task involves multiple discrete deliverables (e.g., audit → plan → is
 
 ## Pull Requests
 
-- Always create PRs as **ready for review** and assign the author (`gh pr create --assignee @me`).
+- Always create PRs as **draft** and assign the author (`gh pr create --draft --assignee @me`).
 - For PR review operations (fetching, triaging, resolving threads), always use the review scripts via `npm --prefix /home/fbaltor/.claude/scripts/reviews run <script> -- <args>`. Never write raw `gh api graphql` queries for review thread operations. Available scripts: `fetch-reviews`, `check-reviews`, `resolve-threads`.
 - Review triage uses `<reviewer>/<severity>-<n>` IDs (e.g., `cp/med-1`, `cr/high-2`). Reviewers: `cp` (Copilot), `cr` (CodeRabbit), `va` (Vercel Agent), human = first 2-3 letters. Severity: `crit`, `high`, `med`, `min`, `fp`. Format is codified in `/home/fbaltor/.claude/skills/triage-reviews/SKILL.md`.
 
