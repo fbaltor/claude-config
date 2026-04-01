@@ -9,6 +9,7 @@
 import {
   findLinearLinkedDocs,
   checkDocSync,
+  getChangedFilesOnBranch,
   getCurrentBranch,
   parseIssueId,
 } from "../scripts/lib/linear.ts";
@@ -31,14 +32,16 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  const docs = findLinearLinkedDocs(input.cwd);
+  const allDocs = findLinearLinkedDocs(input.cwd);
+  const changedFiles = getChangedFilesOnBranch(input.cwd);
+  const docs = allDocs.filter((d) => changedFiles.has(d.filePath));
   if (docs.length === 0) {
     process.exit(0);
   }
 
   const outOfSync: string[] = [];
   for (const doc of docs) {
-    const result = await checkDocSync(input.cwd, doc);
+    const result = checkDocSync(input.cwd, doc);
     if (result) outOfSync.push(result);
   }
 

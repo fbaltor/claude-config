@@ -190,17 +190,21 @@ Use `/linear-push-doc` and `/linear-pull-doc` for one-way syncs between local ma
 # This creates docs/architecture.md with frontmatter:
 # ---
 # linear_document_id: abc123-def456
-# title: Architecture Overview
+# linear_document_title: Architecture Overview
+# linear_sync_hash: 5a8f5572fdf9
 # ---
 
 # After editing locally, push changes back to Linear
 /linear-push-doc docs/architecture.md
 
+# Push ALL Linear-linked docs in the repo at once
+/linear-push-doc
+
 # Pull latest changes from Linear into the local file
 /linear-pull-doc docs/architecture.md
 ```
 
-The document ID is stored in YAML frontmatter after the initial pull, so subsequent syncs don't need `--id`.
+The document ID is stored in YAML frontmatter after the initial pull, so subsequent syncs don't need `--id`. A `linear_sync_hash` is also written on each push/pull — the pre-PR hook uses it to verify docs are synced before creating a PR (only docs changed on the branch are checked).
 
 ### Fetching Linear Issues
 

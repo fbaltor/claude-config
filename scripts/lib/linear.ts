@@ -3,7 +3,9 @@
  */
 
 import { LinearClient } from "@linear/sdk";
+import { createHash } from "node:crypto";
 import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { execSync } from "node:child_process";
 
 // ---------------------------------------------------------------------------
@@ -85,6 +87,40 @@ export function parseIssueId(branch: string): string | null {
   return match ? match[0].toUpperCase() : null;
 }
 
+/**
+ * Return the set of file paths changed on the current branch vs the merge base with main.
+ */
+export function getChangedFilesOnBranch(cwd: string): Set<string> {
+  try {
+    const mergeBase = execSync("git merge-base HEAD main", {
+      cwd,
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+    const output = execSync(`git diff --name-only ${mergeBase}..HEAD`, {
+      cwd,
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "ignore"],
+    });
+    return new Set(output.trim().split("\n").filter(Boolean));
+  } catch {
+    return new Set();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sync hash — tracks whether local content has changed since last push/pull
+// ---------------------------------------------------------------------------
+
+/**
+ * Compute a truncated SHA-256 hash of the body content.
+ * Used to detect local changes without fetching from Linear.
+ */
+export function computeSyncHash(body: string): string {
+  const normalized = body.trim().replace(/\r\n/g, "\n");
+  return createHash("sha256").update(normalized, "utf-8").digest("hex").slice(0, 12);
+}
+
 // ---------------------------------------------------------------------------
 // Document sync check
 // ---------------------------------------------------------------------------
@@ -98,7 +134,6 @@ export interface SyncedDoc {
  * Find all markdown files under `cwd` that have a `linear_document_id` in frontmatter.
  */
 export function findLinearLinkedDocs(cwd: string): SyncedDoc[] {
-  const { execSync } = require("node:child_process") as typeof import("node:child_process");
   let files: string[];
   try {
     const output = execSync("grep -rl 'linear_document_id:' --include='*.md' .", {
@@ -113,7 +148,7 @@ export function findLinearLinkedDocs(cwd: string): SyncedDoc[] {
 
   const docs: SyncedDoc[] = [];
   for (const rel of files) {
-    const abs = require("node:path").resolve(cwd, rel);
+    const abs = resolve(cwd, rel);
     if (!existsSync(abs)) continue;
     const raw = readFileSync(abs, "utf-8");
     const { data } = parseFrontmatter(raw);
@@ -126,28 +161,24 @@ export function findLinearLinkedDocs(cwd: string): SyncedDoc[] {
 
 /**
  * Check if a local file is in sync with its Linear document.
+ * Compares the current body hash against `linear_sync_hash` in frontmatter.
  * Returns null if in sync, or a description string if out of sync.
  */
-export async function checkDocSync(
+export function checkDocSync(
   cwd: string,
   doc: SyncedDoc,
-): Promise<string | null> {
-  const { resolve } = require("node:path") as typeof import("node:path");
+): string | null {
   const absPath = resolve(cwd, doc.filePath);
   if (!existsSync(absPath)) return `${doc.filePath}: file not found locally`;
 
   const raw = readFileSync(absPath, "utf-8");
-  const { body: localBody } = parseFrontmatter(raw);
+  const { data, body } = parseFrontmatter(raw);
 
-  const client = getClient("read");
-  const linearDoc = await client.document(doc.docId);
-  if (!linearDoc) return `${doc.filePath}: Linear document ${doc.docId} not found`;
+  const storedHash = data.linear_sync_hash;
+  if (!storedHash) return `${doc.filePath} (doc: ${doc.docId}, never synced)`;
 
-  const remoteBody = stripSyncBanner(linearDoc.content ?? "");
-
-  // Normalize whitespace for comparison
-  const normalize = (s: string) => s.trim().replace(/\r\n/g, "\n");
-  if (normalize(localBody) !== normalize(remoteBody)) {
+  const currentHash = computeSyncHash(body);
+  if (currentHash !== storedHash) {
     return `${doc.filePath} (doc: ${doc.docId})`;
   }
 

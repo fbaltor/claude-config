@@ -5,8 +5,10 @@ disable-model-invocation: false
 
 ## Push result
 
-!`echo "Syncing: $ARGUMENTS" && npx tsx "$HOME/.claude/scripts/linear-doc-sync.ts" push $ARGUMENTS`
+!`npx tsx "$HOME/.claude/scripts/linear-doc-sync.ts" push $ARGUMENTS`
 
 ## Instructions
 
 Report the result of the push operation to the user. If it failed, help diagnose the issue (missing frontmatter, missing LINEAR_API_KEY, etc.).
+
+When invoked without arguments, the script pushes all Linear-linked docs found in the repo.

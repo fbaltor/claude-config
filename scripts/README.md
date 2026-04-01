@@ -94,8 +94,9 @@ Shared Linear utilities imported by scripts and hooks. Contains:
 - **Client:** `getClient("read" | "write")` — creates a `LinearClient` from `LINEAR_API_KEY_READ`/`LINEAR_API_KEY_ALL` env vars
 - **Frontmatter:** `parseFrontmatter()`, `buildFrontmatter()` — YAML frontmatter parsing for Linear-linked markdown files
 - **Sync banner:** `buildSyncBanner()`, `stripSyncBanner()` — the "source of truth" banner prepended to Linear documents
-- **Git:** `getCurrentBranch()`, `parseIssueId(branch)` — branch name parsing for `JUMP-*`/`GOJ-*` patterns
-- **Doc sync:** `findLinearLinkedDocs(cwd)`, `checkDocSync(cwd, doc)` — find and compare Linear-linked docs
+- **Sync hash:** `computeSyncHash(body)` — truncated SHA-256 of body content, stored as `linear_sync_hash` in frontmatter on push/pull
+- **Git:** `getCurrentBranch()`, `parseIssueId(branch)`, `getChangedFilesOnBranch(cwd)` — branch name parsing and diff detection
+- **Doc sync:** `findLinearLinkedDocs(cwd)`, `checkDocSync(cwd, doc)` — find Linear-linked docs and compare hash (no API call)
 - **Issue status:** `updateIssueStatus(identifier, statusName)` — update a Linear issue's workflow state
 
 ## Scripts
@@ -123,11 +124,12 @@ Syncs markdown files with Linear documents (bidirectional, one direction at a ti
 **Requires:** `LINEAR_API_KEY_ALL` (push) or `LINEAR_API_KEY_READ` (pull) environment variable.
 
 **Usage (via skill):**
-- `/linear-push-doc <file_path>` -- push local file to its linked Linear document
+- `/linear-push-doc` -- push all Linear-linked docs in the repo
+- `/linear-push-doc <file_path>` -- push a single file to its linked Linear document
 - `/linear-pull-doc <file_path>` -- pull Linear document into local file
 - `/linear-pull-doc <file_path> --id <doc_id>` -- initial pull with explicit document ID
 
-Files must have YAML frontmatter with `linear_document_id: <uuid>` to link to a Linear document.
+Files must have YAML frontmatter with `linear_document_id: <uuid>` to link to a Linear document. On push/pull, a `linear_sync_hash` is written to frontmatter to track sync state locally.
 
 **Invoked by:** `~/.claude/skills/linear-push-doc/SKILL.md` and `~/.claude/skills/linear-pull-doc/SKILL.md`.
 
@@ -139,7 +141,7 @@ Hooks are TypeScript scripts in `~/.claude/hooks/` that run automatically via Cl
 
 **Event:** `PreToolUse` on `Bash` (filtered to `gh pr create` commands)
 
-Checks if all Linear-linked markdown files (those with `linear_document_id` in frontmatter) are in sync with their remote Linear documents. **Blocks** the PR creation (exit 2) if any are out of sync, prompting to run `/linear-push-doc` first.
+Checks if Linear-linked markdown files changed on the current branch have a `linear_sync_hash` in frontmatter that matches the current body content. Only docs in the branch diff (vs `main`) are checked — unchanged docs are skipped. **Blocks** the PR creation (exit 2) if any are out of sync, prompting to run `/linear-push-doc` first.
 
 ### `hooks/post-pr-update-linear-status.ts`
 
