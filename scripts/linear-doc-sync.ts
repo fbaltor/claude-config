@@ -1,11 +1,9 @@
 #!/usr/bin/env npx tsx
 /**
- * Linear document sync for Claude Code skills.
+ * Linear document push for Claude Code skills.
  *
  * Usage:
- *   linear-doc-sync.ts push <file_path>                Push file to linked Linear document
- *   linear-doc-sync.ts pull <file_path>                Pull from Linear (reads doc ID from frontmatter)
- *   linear-doc-sync.ts pull <file_path> --id <doc_id>  Pull with explicit doc ID (initial setup)
+ *   linear-doc-sync.ts push [file_path]   Push file (or all linked docs) to Linear
  *
  * Files use YAML frontmatter to store the Linear document ID:
  *   ---
@@ -13,7 +11,6 @@
  *   ---
  *
  * Env vars (from ~/.config/env/linear):
- *   LINEAR_API_KEY_READ  — read-only (used for pull)
  *   LINEAR_API_KEY_ALL   — read+write (used for push)
  */
 
@@ -25,15 +22,16 @@ import {
   parseFrontmatter,
   buildFrontmatter,
   buildSyncBanner,
-  stripSyncBanner,
   computeSyncHash,
 } from "./lib/linear.ts";
 
-async function push(filePath: string): Promise<boolean> {
+type PushResult = "pushed" | "skipped" | "failed";
+
+async function push(filePath: string, force = false): Promise<PushResult> {
   const absPath = resolve(filePath);
   if (!existsSync(absPath)) {
     console.error(`  File not found: ${absPath}`);
-    return false;
+    return "failed";
   }
 
   const raw = readFileSync(absPath, "utf-8");
@@ -42,7 +40,12 @@ async function push(filePath: string): Promise<boolean> {
   const docId = data.linear_document_id;
   if (!docId) {
     console.error(`  No \`linear_document_id\` in frontmatter.`);
-    return false;
+    return "failed";
+  }
+
+  const hash = computeSyncHash(body);
+  if (!force && data.linear_sync_hash === hash) {
+    return "skipped";
   }
 
   const client = getClient("write");
@@ -50,16 +53,15 @@ async function push(filePath: string): Promise<boolean> {
 
   const result = await client.updateDocument(docId, { content });
   if (result.success) {
-    const hash = computeSyncHash(body);
     data.linear_sync_hash = hash;
     const updated = buildFrontmatter(data, body);
     writeFileSync(absPath, updated, "utf-8");
 
     console.log(`  ${filePath} (${body.trim().length} chars, hash: ${hash})`);
-    return true;
+    return "pushed";
   } else {
     console.error(`  Failed to update Linear document for ${filePath}.`);
-    return false;
+    return "failed";
   }
 }
 
@@ -70,56 +72,29 @@ async function pushAll(cwd: string): Promise<void> {
     return;
   }
 
-  console.log(`Pushing ${docs.length} Linear-linked doc(s):\n`);
-  let failed = 0;
+  console.log(`Found ${docs.length} Linear-linked doc(s).\n`);
+  const pushed: string[] = [];
+  const skipped: string[] = [];
+  const failed: string[] = [];
   for (const doc of docs) {
-    const ok = await push(doc.filePath);
-    if (!ok) failed++;
+    const result = await push(doc.filePath);
+    ({ pushed, skipped, failed })[result].push(doc.filePath);
   }
 
-  console.log(`\n${docs.length - failed}/${docs.length} pushed successfully.`);
-  if (failed > 0) process.exit(1);
-}
-
-async function pull(filePath: string, explicitDocId?: string): Promise<void> {
-  const absPath = resolve(filePath);
-  let docId = explicitDocId;
-  let existingData: Record<string, string> = {};
-
-  if (existsSync(absPath)) {
-    const raw = readFileSync(absPath, "utf-8");
-    const parsed = parseFrontmatter(raw);
-    existingData = parsed.data;
-    if (!docId) docId = parsed.data.linear_document_id;
+  console.log(`\n--- Summary ---`);
+  if (pushed.length > 0) {
+    console.log(`Pushed (${pushed.length}):`);
+    for (const f of pushed) console.log(`  ✓ ${f}`);
   }
-
-  if (!docId) {
-    console.error("No document ID. Provide --id <doc_id> or add frontmatter.");
-    process.exit(1);
+  if (skipped.length > 0) {
+    console.log(`Skipped (${skipped.length}, unchanged):`);
+    for (const f of skipped) console.log(`  - ${f}`);
   }
-
-  const client = getClient("read");
-  const doc = await client.document(docId);
-
-  if (!doc) {
-    console.error(`Linear document \`${docId}\` not found.`);
-    process.exit(1);
+  if (failed.length > 0) {
+    console.log(`Failed (${failed.length}):`);
+    for (const f of failed) console.log(`  ✗ ${f}`);
   }
-
-  const content = stripSyncBanner(doc.content ?? "");
-  const hash = computeSyncHash(content);
-  const frontmatterData: Record<string, string> = {
-    ...existingData,
-    linear_document_id: docId,
-    linear_document_title: doc.title,
-    linear_sync_hash: hash,
-  };
-
-  const output = buildFrontmatter(frontmatterData, content.trimEnd() + "\n");
-  writeFileSync(absPath, output, "utf-8");
-
-  console.log(`Pulled Linear document \`${doc.title}\` to \`${filePath}\`.`);
-  console.log(`(${content.trim().length} characters)`);
+  if (failed.length > 0) process.exit(1);
 }
 
 async function main(): Promise<void> {
@@ -132,32 +107,11 @@ async function main(): Promise<void> {
       await pushAll(process.cwd());
       return;
     }
-    console.log(`Pushing 1 doc:\n`);
-    const ok = await push(filePath);
-    if (!ok) process.exit(1);
-  } else if (command === "pull") {
-    const idIdx = args.indexOf("--id");
-    let docId: string | undefined;
-    let filePath: string | undefined;
-
-    if (idIdx !== -1) {
-      docId = args[idIdx + 1];
-      filePath = args.find(
-        (a, i) => i > 0 && i !== idIdx && i !== idIdx + 1 && !a.startsWith("--")
-      );
-    } else {
-      filePath = args[1];
-    }
-
-    if (!filePath) {
-      console.error("Usage: linear-doc-sync.ts pull <file_path> [--id <doc_id>]");
-      process.exit(1);
-    }
-    await pull(filePath, docId);
+    const result = await push(filePath);
+    if (result === "skipped") console.log(`Skipped (unchanged): ${filePath}`);
+    if (result === "failed") process.exit(1);
   } else {
-    console.error(
-      "Usage: linear-doc-sync.ts <push|pull> <file_path> [--id <doc_id>]"
-    );
+    console.error("Usage: linear-doc-sync.ts push [file_path]");
     process.exit(1);
   }
 }

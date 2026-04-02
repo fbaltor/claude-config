@@ -84,4 +84,4 @@ The script replaces ```mermaid blocks with rendered ASCII and appends the origin
 
 ## Linear Document Sync
 
-When asked to update/push/sync a document to Linear, use the `/linear-push-doc` skill with the file path as argument. When asked to pull/fetch a document from Linear, use `/linear-pull-doc`. For fetching issue context from the current branch, use `/linear --fetch-issue`. These skills live at `/home/fbaltor/.claude/skills/linear*/SKILL.md`.
+When asked to update/push/sync a document to Linear, use the `/linear-push-doc` skill with the file path as argument. For fetching issue context from the current branch, use `/linear --fetch-issue`. These skills live at `/home/fbaltor/.claude/skills/linear*/SKILL.md`.
