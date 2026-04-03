@@ -13,6 +13,7 @@
   "scripts": {
     "fetch-reviews": "npm --prefix reviews run fetch-reviews --",
     "check-reviews": "npm --prefix reviews run check-reviews --",
+    "test": "node --import tsx --test __tests__/*.test.ts",
     "test:reviews": "npm --prefix reviews test"
   }
 }
