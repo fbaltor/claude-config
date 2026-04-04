@@ -21,7 +21,6 @@ import { resolve } from "node:path";
 import {
   getClient,
   findLinearLinkedDocs,
-  checkDocSync,
   parseFrontmatter,
   buildFrontmatter,
   buildSyncBanner,
@@ -151,6 +150,10 @@ function checkAll(cwd: string): void {
   console.log(`\n--- Summary ---`);
   console.log(`${synced.length} in sync, ${drifted.length} drifted, ${failed.length} failed`);
 
+  if (synced.length > 0) {
+    console.log(`Synced (${synced.length}):`);
+    for (const f of synced) console.log(`  ✓ ${f}`);
+  }
   if (drifted.length > 0) {
     console.log(`\nRun \`linear-doc-sync.ts push\` to sync drifted docs.`);
     process.exit(1);
