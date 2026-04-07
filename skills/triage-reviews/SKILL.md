@@ -44,9 +44,11 @@ npm --prefix ~/.claude/scripts/reviews run fetch-reviews -- --wait --pr PR --rep
 Tell the user: "Waiting for bot reviews to complete. I'll proceed with triage when ready."
 When the background process completes, continue with the next step.
 
+**IMPORTANT**: Do NOT guess, fabricate, or assume what the script output will look like. Wait for the background task to actually complete, then read its real output.
+
 ### Read the YAML output
 
-The script prints file paths to stdout. Look for the `.yaml` path in the output and read that file with the Read tool.
+The script prints parseable output paths to stdout in the format `yaml: /absolute/path/to/file.yaml`. After the background task completes, find the line starting with `yaml:` in the task output and read that exact file path with the Read tool. Do NOT invent file paths or assume the output directory — always extract the path from the actual script output.
 
 ## Step 3 — Filter to actionable comments
 
