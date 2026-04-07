@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { Octokit } from "@octokit/rest";
 
 export const DEFAULT_OWNER = "Jumpstart-Immigration";
 export const DEFAULT_REPO = "jumpstart";
@@ -33,9 +34,9 @@ export interface CommonCliArgs {
 
 /**
  * Parses --pr and --repo from argv. If --pr is absent, auto-detects from
- * the current git branch via `gh pr list`.
+ * the current git branch via the GitHub REST API.
  */
-export function parseCommonArgs(args: string[]): CommonCliArgs {
+export async function parseCommonArgs(args: string[]): Promise<CommonCliArgs> {
   // Parse --repo
   let owner = DEFAULT_OWNER;
   let repo = DEFAULT_REPO;
@@ -63,24 +64,23 @@ export function parseCommonArgs(args: string[]): CommonCliArgs {
     return { pr: n, owner, repo };
   }
 
-  // Try to detect from current branch
+  // Try to detect from current branch via REST API
   try {
     const branch = execFileSync("git", ["branch", "--show-current"], {
       encoding: "utf-8",
     }).trim();
-    const result = execFileSync(
-      "gh",
-      [
-        "pr", "list",
-        "--repo", `${owner}/${repo}`,
-        "--head", branch,
-        "--json", "number",
-        "--jq", ".[0].number",
-      ],
-      { encoding: "utf-8" },
-    ).trim();
-    const n = Number(result);
-    if (!Number.isNaN(n) && n > 0) return { pr: n, owner, repo };
+    if (branch) {
+      const token = getGitHubToken();
+      const octokit = new Octokit({ auth: token });
+      const { data } = await octokit.pulls.list({
+        owner,
+        repo,
+        head: `${owner}:${branch}`,
+        state: "open",
+        per_page: 1,
+      });
+      if (data[0]) return { pr: data[0].number, owner, repo };
+    }
   } catch {
     // ignore
   }

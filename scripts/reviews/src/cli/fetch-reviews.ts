@@ -79,11 +79,11 @@ Examples:
   process.exit(0);
 }
 
-function parseArgs(): CliArgs {
+async function parseArgs(): Promise<CliArgs> {
   const args = process.argv.slice(2);
   if (args.includes("--help")) printHelp();
 
-  const common = parseCommonArgs(args);
+  const common = await parseCommonArgs(args);
 
   let filter: ReviewFilter = "all";
   if (args.includes("--bot")) filter = "bot";
@@ -119,7 +119,7 @@ function parseArgs(): CliArgs {
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  const { pr, owner, repo, wait, rerun, filter, formats } = parseArgs();
+  const { pr, owner, repo, wait, rerun, filter, formats } = await parseArgs();
 
   const token = getGitHubToken();
 

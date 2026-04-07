@@ -56,11 +56,11 @@ Examples:
   process.exit(0);
 }
 
-function parseResolveArgs(): ResolveCliArgs {
+async function parseResolveArgs(): Promise<ResolveCliArgs> {
   const args = process.argv.slice(2);
   if (args.includes("--help")) printHelp();
 
-  const common = parseCommonArgs(args);
+  const common = await parseCommonArgs(args);
 
   // Collect --thread values (repeatable)
   const threadIds: string[] = [];
@@ -101,7 +101,7 @@ function formatThread(t: UnresolvedThread, index: number): string {
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  const { pr, owner, repo, list, all, threadIds, reply } = parseResolveArgs();
+  const { pr, owner, repo, list, all, threadIds, reply } = await parseResolveArgs();
 
   if (!list && !all && threadIds.length === 0) {
     console.error("Specify --list, --all, or --thread <id>. Use --help for usage.");

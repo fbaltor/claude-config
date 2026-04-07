@@ -52,11 +52,11 @@ Examples:
   process.exit(0);
 }
 
-function parseStatusArgs(): StatusCliArgs {
+async function parseStatusArgs(): Promise<StatusCliArgs> {
   const args = process.argv.slice(2);
   if (args.includes("--help")) printHelp();
 
-  const common = parseCommonArgs(args);
+  const common = await parseCommonArgs(args);
   return {
     ...common,
     wait: args.includes("--wait"),
@@ -69,7 +69,7 @@ function parseStatusArgs(): StatusCliArgs {
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  const { pr, owner, repo, wait, rerun } = parseStatusArgs();
+  const { pr, owner, repo, wait, rerun } = await parseStatusArgs();
 
   const octokit = new Octokit({ auth: getGitHubToken() });
   const renderer = createRenderer();
