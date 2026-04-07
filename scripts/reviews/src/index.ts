@@ -60,4 +60,15 @@ export {
   replyAndResolve,
 } from "./resolve-threads.js";
 
+export {
+  type CiAnnotation,
+  type CiStep,
+  type CiFailure,
+  type CiFailureReport,
+  fetchFailedCiChecks,
+  fetchCiFailureDetails,
+  extractFailedStepLog,
+  buildCiFailureYaml,
+} from "./ci-checks.js";
+
 export { getGitHubToken, parseCommonArgs } from "./cli-utils.js";

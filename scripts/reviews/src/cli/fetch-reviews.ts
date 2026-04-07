@@ -16,6 +16,7 @@ import { graphql } from "@octokit/graphql";
 import { Octokit } from "@octokit/rest";
 import { getGitHubToken, parseCommonArgs } from "../cli-utils.js";
 import { waitForCompletion } from "../check-reviews.js";
+import { buildCiFailureYaml } from "../ci-checks.js";
 import { buildYamlOutput } from "../yaml-builder/index.js";
 import {
   getAuthorName,
@@ -127,7 +128,24 @@ async function main(): Promise<void> {
   if (wait) {
     console.log(`Checking AI review status for PR #${pr}...`);
     const octokit = new Octokit({ auth: token });
-    const result = await waitForCompletion(octokit, owner, repo, pr, { rerun });
+    const result = await waitForCompletion(octokit, owner, repo, pr, { rerun, checkCi: true });
+
+    // CI failure detected — write failure report and abort
+    if (result.ciFailures && result.ciFailures.length > 0) {
+      const failNames = result.ciFailures.map((f) => f.job_name).join(", ");
+      console.error(`\nCI check failed: ${failNames}`);
+      console.error("Fix CI before triaging reviews.\n");
+
+      const outDir = join(process.cwd(), ".pr-reviews");
+      mkdirSync(outDir, { recursive: true });
+      const ciYaml = buildCiFailureYaml(result.ciFailures);
+      const ciPath = join(outDir, `pr-${pr}-ci-failure.yaml`);
+      writeFileSync(ciPath, ciYaml, "utf-8");
+
+      console.log(`ci-failure: ${ciPath}`);
+      process.exit(1);
+    }
+
     if (!result.allCompleted || result.anyFailed) {
       console.error("AI reviews did not complete successfully. Aborting fetch.");
       process.exit(1);

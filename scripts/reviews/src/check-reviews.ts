@@ -6,6 +6,11 @@ import { Octokit } from "@octokit/rest";
 import { AI_REVIEWERS } from "./shared.js";
 import type { StatusRenderer } from "./check-reviews-renderer.js";
 import { createRenderer } from "./check-reviews-renderer.js";
+import {
+  fetchFailedCiChecks,
+  fetchCiFailureDetails,
+  type CiFailure,
+} from "./ci-checks.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -27,6 +32,7 @@ export interface CheckStatusResult {
   checks: AiCheckRun[];
   allCompleted: boolean;
   anyFailed: boolean;
+  ciFailures?: CiFailure[];
 }
 
 export interface WaitOptions {
@@ -34,6 +40,8 @@ export interface WaitOptions {
   pollIntervalMs?: number;
   timeoutMs?: number;
   renderer?: StatusRenderer;
+  /** Check for CI failures and abort early if found. Default: true when called from --wait. */
+  checkCi?: boolean;
 }
 
 const POLL_INITIAL_INTERVAL_MS = 10_000; // 10 seconds
@@ -231,6 +239,7 @@ export async function waitForCompletion(
 ): Promise<CheckStatusResult> {
   const timeout = options.timeoutMs ?? POLL_TIMEOUT_MS;
   const renderer = options.renderer ?? createRenderer();
+  const checkCi = options.checkCi ?? true;
 
   let result = await getCheckStatus(octokit, owner, repo, pr);
   const { headSha } = result;
@@ -239,6 +248,15 @@ export async function waitForCompletion(
   if (result.checks.length === 0) {
     console.log("No AI review checks found — proceeding immediately.");
     return result;
+  }
+
+  // Check for CI failures immediately on first poll
+  if (checkCi) {
+    const ciResult = await detectCiFailures(octokit, owner, repo, headSha);
+    if (ciResult.length > 0) {
+      result.ciFailures = ciResult;
+      return result;
+    }
   }
 
   if (options.rerun && result.anyFailed) {
@@ -263,6 +281,15 @@ export async function waitForCompletion(
     result = await getCheckStatus(octokit, owner, repo, pr, headSha);
     renderer.update(result);
 
+    // Check for CI failures on each poll
+    if (checkCi) {
+      const ciResult = await detectCiFailures(octokit, owner, repo, headSha);
+      if (ciResult.length > 0) {
+        result.ciFailures = ciResult;
+        return result;
+      }
+    }
+
     if (result.allCompleted) {
       return result;
     }
@@ -270,4 +297,27 @@ export async function waitForCompletion(
 
   console.error("Timeout: AI reviews did not complete within the time limit.");
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// CI failure detection (used during --wait polling)
+// ---------------------------------------------------------------------------
+
+async function detectCiFailures(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  ref: string,
+): Promise<CiFailure[]> {
+  const failedChecks = await fetchFailedCiChecks(octokit, owner, repo, ref);
+  if (failedChecks.length === 0) return [];
+
+  // Fetch details for all failed checks in parallel
+  const details = await Promise.all(
+    failedChecks.map((check) =>
+      fetchCiFailureDetails(octokit, owner, repo, check, ref),
+    ),
+  );
+
+  return details;
 }

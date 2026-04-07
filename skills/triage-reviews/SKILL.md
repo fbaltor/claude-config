@@ -45,13 +45,85 @@ Tell the user: "Waiting for bot reviews to complete. I'll proceed with triage wh
 
 **CRITICAL — do NOT proceed until the system notifies you that the background task completed.** The `run_in_background` mechanism will automatically notify you when the command finishes — you do NOT need to poll, sleep, or check the output file. Do NOT read any output, do NOT call any Read tool, do NOT continue to Step 3 until you receive the background task completion notification. Any output you "see" before that notification is hallucinated.
 
-### Read the YAML output
+### Read the script output
 
-Once the background task notification arrives, read the task output. The **last line** of the script output contains the YAML path in the format:
+Once the background task notification arrives, read the task output. The **last line** of the script output contains a path in one of two formats:
+
+**Success (reviews fetched):**
 ```
 yaml: /absolute/path/to/file.yaml
 ```
-Extract that exact path and read it with the Read tool. Do NOT invent file paths or guess the output directory.
+→ Continue to Step 3.
+
+**CI failure detected (exit code 1):**
+```
+ci-failure: /absolute/path/to/pr-N-ci-failure.yaml
+```
+→ Jump to Step 2b — CI Failure Diagnosis.
+
+Extract the exact path from the output and read it with the Read tool. Do NOT invent file paths or guess the output directory.
+
+## Step 2b — CI Failure Diagnosis
+
+The script detected that a CI check (lint, typecheck, build, etc.) has failed. The YAML file contains structured failure data.
+
+### YAML structure
+
+```yaml
+schema: ci-failure-report
+failures:
+  - job_name: "Lint, Type-check & Build"
+    failed_step: "Lint"
+    steps: [{name, conclusion}, ...]
+    annotations:
+      - level: "warning"
+        file: "path/to/file.ts"
+        line: 46
+        message: "'foo' is defined but never used"
+    log_excerpt: "..."
+    url: "https://github.com/.../actions/runs/..."
+```
+
+### Actions
+
+1. Read the CI failure YAML file.
+2. Collect all unique file paths from `annotations[].file` (skip entries where `file` is `.github`).
+3. Read each referenced source file **once** with the Read tool (parallel reads).
+4. Present the diagnosis using this format:
+
+```
+## CI Failure
+
+**PR #N**: title
+**Job**: Job Name · [view run](url)
+**Failed step**: Step Name
+**Duration**: Xs
+
+---
+
+### Errors
+
+| File | Line | Issue |
+|------|------|-------|
+| `path/to/file.ts` | 46 | 'foo' is defined but never used |
+| `path/to/other.ts` | 12 | Missing return type |
+
+### Log excerpt
+
+(include the `log_excerpt` field if present, in a code block)
+
+---
+
+## Suggested fix
+
+(Based on the annotations and the source code you read, suggest the specific fix.)
+```
+
+5. After presenting, ask: **"Want me to fix these CI errors?"**
+
+If the user says yes, fix the errors, commit, push, and re-invoke `/triage-reviews --wait` to check again.
+
+**Do NOT proceed to Step 3 (review triage) when CI has failed.** The reviews are likely stale or noisy on broken code.
 
 ## Step 3 — Filter to actionable comments
 
