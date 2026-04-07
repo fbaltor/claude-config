@@ -68,7 +68,7 @@ function makeMockOctokit(
 function computeStatus(checks: AiCheckRun[]): Pick<CheckStatusResult, "allCompleted" | "anyFailed"> {
   return {
     allCompleted:
-      checks.length > 0 && checks.every((c) => c.status === "completed"),
+      checks.length === 0 || checks.every((c) => c.status === "completed"),
     anyFailed: checks.some(isFailedCheck),
   };
 }
@@ -431,10 +431,10 @@ describe("status computation", () => {
     assert.equal(anyFailed, false);
   });
 
-  it("empty checks: allCompleted is false", () => {
+  it("empty checks: allCompleted is true (no AI bots to wait for)", () => {
     const { allCompleted, anyFailed } = computeStatus([]);
 
-    assert.equal(allCompleted, false);
+    assert.equal(allCompleted, true);
     assert.equal(anyFailed, false);
   });
 });

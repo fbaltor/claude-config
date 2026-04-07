@@ -2,7 +2,6 @@
  * Library functions for checking the status of AI review bot check runs.
  */
 
-import { execFileSync } from "node:child_process";
 import { Octokit } from "@octokit/rest";
 import { AI_REVIEWERS } from "./shared.js";
 import type { StatusRenderer } from "./check-reviews-renderer.js";
@@ -37,29 +36,27 @@ export interface WaitOptions {
   renderer?: StatusRenderer;
 }
 
-const POLL_INTERVAL_MS = 30_000; // 30 seconds
+const POLL_INITIAL_INTERVAL_MS = 10_000; // 10 seconds
+const POLL_MAX_INTERVAL_MS = 30_000; // 30 seconds
+const POLL_RAMP_AFTER = 3; // ramp to max after this many polls
 const POLL_TIMEOUT_MS = 600_000; // 10 minutes
 
 // ---------------------------------------------------------------------------
 // Core functions
 // ---------------------------------------------------------------------------
 
-function getHeadSha(owner: string, repo: string, pr: number): string {
-  const result = execFileSync(
-    "gh",
-    [
-      "pr", "view", String(pr),
-      "--repo", `${owner}/${repo}`,
-      "--json", "headRefOid",
-      "--jq", ".headRefOid",
-    ],
-    { encoding: "utf-8" },
-  ).trim();
-  if (!result) {
-    console.error(`Could not get HEAD SHA for PR #${pr}`);
-    process.exit(1);
+async function getHeadSha(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  pr: number,
+): Promise<string> {
+  const { data } = await octokit.pulls.get({ owner, repo, pull_number: pr });
+  const sha = data.head.sha;
+  if (!sha) {
+    throw new Error(`Could not get HEAD SHA for PR #${pr}`);
   }
-  return result;
+  return sha;
 }
 
 /** Map commit status state to the check_run status/conclusion model. */
@@ -162,15 +159,16 @@ export async function getCheckStatus(
   pr: number,
   cachedSha?: string,
 ): Promise<CheckStatusResult> {
-  const headSha = cachedSha ?? getHeadSha(owner, repo, pr);
+  const headSha = cachedSha ?? await getHeadSha(octokit, owner, repo, pr);
   const checks = await fetchAiCheckRuns(octokit, owner, repo, headSha);
+
+  const allCompleted = checks.length === 0 || checks.every((c) => c.status === "completed");
 
   return {
     prNumber: pr,
     headSha,
     checks,
-    allCompleted:
-      checks.length > 0 && checks.every((c) => c.status === "completed"),
+    allCompleted,
     anyFailed: checks.some(isFailedCheck),
   };
 }
@@ -231,13 +229,17 @@ export async function waitForCompletion(
   pr: number,
   options: WaitOptions = {},
 ): Promise<CheckStatusResult> {
-  const pollInterval = options.pollIntervalMs ?? POLL_INTERVAL_MS;
   const timeout = options.timeoutMs ?? POLL_TIMEOUT_MS;
   const renderer = options.renderer ?? createRenderer();
 
   let result = await getCheckStatus(octokit, owner, repo, pr);
   const { headSha } = result;
   renderer.render(result);
+
+  if (result.checks.length === 0) {
+    console.log("No AI review checks found — proceeding immediately.");
+    return result;
+  }
 
   if (options.rerun && result.anyFailed) {
     renderer.reset();
@@ -248,9 +250,16 @@ export async function waitForCompletion(
   }
 
   const deadline = Date.now() + timeout;
+  let pollCount = 0;
 
   while (Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, pollInterval));
+    // Adaptive interval: start fast (10s), ramp to 30s after a few polls
+    const interval = pollCount < POLL_RAMP_AFTER
+      ? POLL_INITIAL_INTERVAL_MS
+      : POLL_MAX_INTERVAL_MS;
+    await new Promise((resolve) => setTimeout(resolve, options.pollIntervalMs ?? interval));
+    pollCount++;
+
     result = await getCheckStatus(octokit, owner, repo, pr, headSha);
     renderer.update(result);
 

@@ -2,18 +2,6 @@ import { describe, it, before, mock } from "node:test";
 import assert from "node:assert/strict";
 
 // ---------------------------------------------------------------------------
-// Mock child_process before importing the module under test
-// ---------------------------------------------------------------------------
-
-const execFileSyncMock = mock.fn((): string => "abc123\n");
-
-mock.module("node:child_process", {
-  namedExports: {
-    execFileSync: execFileSyncMock,
-  },
-});
-
-// ---------------------------------------------------------------------------
 // Mock Octokit factory
 // ---------------------------------------------------------------------------
 
@@ -38,11 +26,9 @@ interface MockCommitStatus {
  * Creates a mock Octokit that returns successive check run arrays on each
  * getCheckStatus poll. Each paginate call for check runs advances the index.
  */
-function makePollOctokit(sequence: MockCheckRun[][]) {
+function makePollOctokit(sequence: MockCheckRun[][], headSha = "abc123") {
   let pollCount = 0;
 
-  // Object.assign evaluates getters eagerly, so we must use defineProperty
-  // to attach a dynamic _mockData getter to the mock function.
   const listForRef = mock.fn(async () => ({ data: { check_runs: [] } }));
   Object.defineProperty(listForRef, "_mockData", {
     get() {
@@ -57,7 +43,12 @@ function makePollOctokit(sequence: MockCheckRun[][]) {
     enumerable: true,
   });
 
+  const pullsGet = mock.fn(async () => ({
+    data: { head: { sha: headSha } },
+  }));
+
   return {
+    pulls: { get: pullsGet },
     checks: {
       listForRef,
       rerequestRun: mock.fn(async () => ({})),
@@ -65,7 +56,6 @@ function makePollOctokit(sequence: MockCheckRun[][]) {
     repos: {
       listCommitStatusesForRef,
     },
-    // Cache _mockData in a local variable so the getter is only invoked once.
     paginate: mock.fn(async (method: unknown) => {
       const fn = method as { _mockData?: unknown[] };
       const data = fn._mockData;
@@ -94,8 +84,6 @@ describe("waitForCompletion", () => {
   });
 
   it("returns immediately when all checks are already complete", async () => {
-    execFileSyncMock.mock.resetCalls();
-
     const completed: MockCheckRun = {
       id: 1,
       name: "CodeRabbit",
@@ -115,13 +103,11 @@ describe("waitForCompletion", () => {
 
     assert.equal(result.allCompleted, true);
     assert.equal(result.anyFailed, false);
-    // getHeadSha called exactly once (the initial call)
-    assert.equal(execFileSyncMock.mock.calls.length, 1);
+    // pulls.get called exactly once (the initial call)
+    assert.equal(octokit.pulls.get.mock.calls.length, 1);
   });
 
   it("fetches HEAD SHA only once across multiple polls", async () => {
-    execFileSyncMock.mock.resetCalls();
-
     const inProgress: MockCheckRun = {
       id: 1,
       name: "CodeRabbit",
@@ -148,14 +134,11 @@ describe("waitForCompletion", () => {
     });
 
     assert.equal(result.allCompleted, true);
-    // getHeadSha (execFileSync) called only once — not on each poll
-    assert.equal(execFileSyncMock.mock.calls.length, 1);
+    // pulls.get called only once — not on each poll
+    assert.equal(octokit.pulls.get.mock.calls.length, 1);
   });
 
   it("reuses the same headSha from the first poll in subsequent results", async () => {
-    execFileSyncMock.mock.resetCalls();
-    execFileSyncMock.mock.mockImplementation(() => "first-sha\n");
-
     const inProgress: MockCheckRun = {
       id: 1,
       name: "CodeRabbit",
@@ -173,7 +156,7 @@ describe("waitForCompletion", () => {
       details_url: null,
     };
 
-    const octokit = makePollOctokit([[inProgress], [completed]]);
+    const octokit = makePollOctokit([[inProgress], [completed]], "first-sha");
 
     const result = await waitForCompletion(octokit as never, "o", "r", 1, {
       pollIntervalMs: 10,

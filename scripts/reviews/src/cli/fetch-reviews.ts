@@ -39,6 +39,8 @@ import {
 // CLI arg parsing
 // ---------------------------------------------------------------------------
 
+type OutputFormat = "yaml" | "md" | "by-reviewer" | "json";
+
 interface CliArgs {
   pr: number;
   owner: string;
@@ -46,6 +48,7 @@ interface CliArgs {
   wait: boolean;
   rerun: boolean;
   filter: ReviewFilter;
+  formats: Set<OutputFormat>;
 }
 
 function printHelp(): never {
@@ -63,6 +66,8 @@ Options:
   --human            Only include human reviewers
   --wait             Wait for AI review checks to complete before fetching
   --rerun            Re-trigger failed review checks (use with --wait)
+  --format <list>    Comma-separated output formats: yaml,md,by-reviewer,json (default: yaml)
+  --format all       Enable all output formats
   --help             Show this help message
 
 Requires: gh CLI authenticated with repo access, or GITHUB_TOKEN env var.
@@ -84,11 +89,28 @@ function parseArgs(): CliArgs {
   if (args.includes("--bot")) filter = "bot";
   else if (args.includes("--human")) filter = "human";
 
+  // Parse --format (default: yaml only)
+  const ALL_FORMATS: OutputFormat[] = ["yaml", "md", "by-reviewer", "json"];
+  let formats = new Set<OutputFormat>(["yaml"]);
+  const formatIdx = args.indexOf("--format");
+  if (formatIdx !== -1 && args[formatIdx + 1]) {
+    const raw = args[formatIdx + 1];
+    if (raw === "all") {
+      formats = new Set(ALL_FORMATS);
+    } else {
+      formats = new Set(
+        raw.split(",").filter((f): f is OutputFormat => ALL_FORMATS.includes(f as OutputFormat)),
+      );
+      if (formats.size === 0) formats.add("yaml");
+    }
+  }
+
   return {
     ...common,
     wait: args.includes("--wait"),
     rerun: args.includes("--rerun"),
     filter,
+    formats,
   };
 }
 
@@ -97,7 +119,7 @@ function parseArgs(): CliArgs {
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  const { pr, owner, repo, wait, rerun, filter } = parseArgs();
+  const { pr, owner, repo, wait, rerun, filter, formats } = parseArgs();
 
   const token = getGitHubToken();
 
@@ -249,61 +271,55 @@ async function main(): Promise<void> {
     }
   }
 
-  // Write raw output
-  const outDir = join(
-    process.cwd(),
-    ".pr-reviews",
-  );
+  // Write outputs
+  const outDir = join(process.cwd(), ".pr-reviews");
   mkdirSync(outDir, { recursive: true });
 
-  const outPath = join(outDir, `pr-${pr}-reviews-${timestamp}.md`);
-  writeFileSync(outPath, lines.join("\n"), "utf-8");
+  const savedPaths: Record<string, string> = {};
 
-  console.log(`Saved to ${outPath}`);
+  if (formats.has("md")) {
+    const outPath = join(outDir, `pr-${pr}-reviews-${timestamp}.md`);
+    writeFileSync(outPath, lines.join("\n"), "utf-8");
+    savedPaths.md = outPath;
+  }
 
-  // Write by-bot organized output
-  const reviewerMap = collectByReviewer(reviews, filteredThreads, prComments);
-  const byReviewerContent = buildByReviewerMarkdown(
-    pr,
-    prMeta.title,
-    prMeta.url,
-    isoString,
-    reviewerMap,
-  );
-  const byReviewerPath = join(outDir, `pr-${pr}-reviews-${timestamp}-by-reviewer.md`);
-  writeFileSync(byReviewerPath, byReviewerContent, "utf-8");
+  if (formats.has("by-reviewer") || formats.has("json")) {
+    // Both by-reviewer and json need the reviewerMap
+    var reviewerMap = collectByReviewer(reviews, filteredThreads, prComments);
 
-  console.log(`Saved to ${byReviewerPath}`);
+    if (formats.has("by-reviewer")) {
+      const byReviewerContent = buildByReviewerMarkdown(
+        pr, prMeta.title, prMeta.url, isoString, reviewerMap,
+      );
+      const byReviewerPath = join(outDir, `pr-${pr}-reviews-${timestamp}-by-reviewer.md`);
+      writeFileSync(byReviewerPath, byReviewerContent, "utf-8");
+      savedPaths["by-reviewer"] = byReviewerPath;
+    }
 
-  // Write JSON sidecar
-  const sidecar = buildJsonSidecar(
-    pr,
-    `${owner}/${repo}`,
-    prMeta.title,
-    prMeta.url,
-    isoString,
-    reviewerMap,
-    filteredThreads,
-  );
-  const jsonPath = join(outDir, `pr-${pr}-reviews-${timestamp}.json`);
-  writeFileSync(jsonPath, JSON.stringify(sidecar, null, 2), "utf-8");
+    if (formats.has("json")) {
+      const sidecar = buildJsonSidecar(
+        pr, `${owner}/${repo}`, prMeta.title, prMeta.url, isoString, reviewerMap, filteredThreads,
+      );
+      const jsonPath = join(outDir, `pr-${pr}-reviews-${timestamp}.json`);
+      writeFileSync(jsonPath, JSON.stringify(sidecar, null, 2), "utf-8");
+      savedPaths.json = jsonPath;
+    }
+  }
 
-  console.log(`Saved to ${jsonPath}`);
+  if (formats.has("yaml")) {
+    const yamlContent = buildYamlOutput({
+      pr, owner, repo, prMeta, reviews, threads: filteredThreads, comments: prComments,
+    });
+    const yamlPath = join(outDir, `pr-${pr}-reviews-${timestamp}.yaml`);
+    writeFileSync(yamlPath, yamlContent, "utf-8");
+    savedPaths.yaml = yamlPath;
+  }
 
-  // Write YAML output
-  const yamlContent = buildYamlOutput({
-    pr,
-    owner,
-    repo,
-    prMeta,
-    reviews,
-    threads: filteredThreads,
-    comments: prComments,
-  });
-  const yamlPath = join(outDir, `pr-${pr}-reviews-${timestamp}.yaml`);
-  writeFileSync(yamlPath, yamlContent, "utf-8");
-
-  console.log(`Saved to ${yamlPath}`);
+  // Print parseable output paths (one per line, key: path)
+  console.log("");
+  for (const [key, path] of Object.entries(savedPaths)) {
+    console.log(`${key}: ${path}`);
+  }
 }
 
 const isMainModule = process.argv[1]?.endsWith("fetch-reviews.ts");

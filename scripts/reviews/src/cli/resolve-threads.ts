@@ -150,33 +150,51 @@ async function main(): Promise<void> {
 
   console.log(`Resolving ${targets.length} thread(s) on PR #${pr}...`);
 
+  const CONCURRENCY = 5;
+  const results: Array<{ location: string; ok: boolean; msg: string }> = [];
+
+  // Process in batches of CONCURRENCY
+  for (let i = 0; i < targets.length; i += CONCURRENCY) {
+    const batch = targets.slice(i, i + CONCURRENCY);
+    const batchResults = await Promise.allSettled(
+      batch.map(async (thread) => {
+        const location = thread.file
+          ? `${thread.file}${thread.line ? `:${thread.line}` : ""}`
+          : "(general)";
+
+        if (reply) {
+          const result = await replyAndResolve(gql, octokit, owner, repo, pr, thread, reply);
+          const replyStatus = result.replied ? "replied" : "reply skipped (404)";
+          if (result.resolved) {
+            return { location, ok: true, msg: `resolved (${replyStatus})` };
+          }
+          return { location, ok: false, msg: result.error ?? "unknown" };
+        }
+
+        await resolveThread(gql, thread.threadId);
+        return { location, ok: true, msg: "resolved" };
+      }),
+    );
+
+    for (const settled of batchResults) {
+      if (settled.status === "fulfilled") {
+        results.push(settled.value);
+      } else {
+        const msg = settled.reason instanceof Error ? settled.reason.message : String(settled.reason);
+        results.push({ location: "(unknown)", ok: false, msg });
+      }
+    }
+  }
+
   let succeeded = 0;
   let failed = 0;
-  for (const thread of targets) {
-    const location = thread.file
-      ? `${thread.file}${thread.line ? `:${thread.line}` : ""}`
-      : "(general)";
-
-    if (reply) {
-      const result = await replyAndResolve(gql, octokit, owner, repo, pr, thread, reply);
-      const replyStatus = result.replied ? "replied" : "reply skipped (404)";
-      if (result.resolved) {
-        console.log(`  ✓ ${location} — resolved (${replyStatus})`);
-        succeeded++;
-      } else {
-        console.log(`  ✗ ${location} — failed: ${result.error ?? "unknown"}`);
-        failed++;
-      }
+  for (const r of results) {
+    if (r.ok) {
+      console.log(`  ✓ ${r.location} — ${r.msg}`);
+      succeeded++;
     } else {
-      try {
-        await resolveThread(gql, thread.threadId);
-        console.log(`  ✓ ${location} — resolved`);
-        succeeded++;
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.log(`  ✗ ${location} — failed: ${msg}`);
-        failed++;
-      }
+      console.log(`  ✗ ${r.location} — failed: ${r.msg}`);
+      failed++;
     }
   }
 
