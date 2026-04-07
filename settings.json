@@ -109,6 +109,7 @@
     "vercel@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
+  "showThinkingSummaries": true,
   "effortLevel": "high",
   "plansDirectory": "/home/fbaltor/.claude/plans",
   "autoMemoryEnabled": true
