@@ -25,6 +25,9 @@ import {
   buildFrontmatter,
   buildSyncBanner,
   computeSyncHash,
+  getCurrentBranch,
+  parseIssueId,
+  resolveIssueId,
 } from "./lib/linear.ts";
 
 type PushResult = "pushed" | "skipped" | "failed";
@@ -39,10 +42,14 @@ async function push(filePath: string, force = false): Promise<PushResult> {
   const raw = readFileSync(absPath, "utf-8");
   const { data, body } = parseFrontmatter(raw);
 
-  const docId = data.linear_document_id;
+  let docId = data.linear_document_id;
+
+  // If no document linked yet, create one on the current branch's issue
   if (!docId) {
-    console.error(`  No \`linear_document_id\` in frontmatter.`);
-    return "failed";
+    const created = await createDocumentForFile(filePath, data, body);
+    if (!created) return "failed";
+    docId = created;
+    data.linear_document_id = docId;
   }
 
   const hash = computeSyncHash(body);
@@ -65,6 +72,58 @@ async function push(filePath: string, force = false): Promise<PushResult> {
     console.error(`  Failed to update Linear document for ${filePath}.`);
     return "failed";
   }
+}
+
+/**
+ * Create a new Linear document attached to the current branch's issue.
+ * Returns the new document ID, or null on failure.
+ */
+async function createDocumentForFile(
+  filePath: string,
+  data: Record<string, string>,
+  body: string,
+): Promise<string | null> {
+  const branch = getCurrentBranch();
+  if (!branch) {
+    console.error(`  No \`linear_document_id\` in frontmatter and not in a git repo.`);
+    return null;
+  }
+
+  const issueIdentifier = parseIssueId(branch);
+  if (!issueIdentifier) {
+    console.error(`  No \`linear_document_id\` in frontmatter and could not parse issue ID from branch "${branch}".`);
+    return null;
+  }
+
+  const issueUuid = await resolveIssueId(issueIdentifier);
+  if (!issueUuid) {
+    console.error(`  Issue ${issueIdentifier} not found in Linear.`);
+    return null;
+  }
+
+  // Derive title from the first heading or the filename
+  const headingMatch = body.match(/^#\s+(.+)$/m);
+  const title = headingMatch
+    ? headingMatch[1].trim()
+    : filePath.replace(/.*\//, "").replace(/\.md$/, "");
+
+  const client = getClient("write");
+  const content = buildSyncBanner(filePath) + body.trimEnd() + "\n";
+
+  const result = await client.createDocument({ title, content, issueId: issueUuid });
+  if (!result.success) {
+    console.error(`  Failed to create Linear document for ${filePath}.`);
+    return null;
+  }
+
+  const doc = await result.document;
+  if (!doc) {
+    console.error(`  Document created but could not retrieve ID.`);
+    return null;
+  }
+
+  console.log(`  Created Linear document "${title}" (${doc.id}) on ${issueIdentifier}`);
+  return doc.id;
 }
 
 async function pushAll(cwd: string): Promise<void> {

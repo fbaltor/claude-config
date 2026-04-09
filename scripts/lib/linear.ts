@@ -186,6 +186,31 @@ export function checkDocSync(
 }
 
 // ---------------------------------------------------------------------------
+// Issue resolution
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve an issue identifier (e.g., "JUMP-247") to its UUID.
+ */
+export async function resolveIssueId(identifier: string): Promise<string | null> {
+  const match = identifier.match(/^([A-Z]+)-(\d+)$/);
+  if (!match) return null;
+
+  const [, teamKey, numberStr] = match;
+  const client = getClient("read");
+
+  const result = await client.issues({
+    filter: {
+      team: { key: { eq: teamKey } },
+      number: { eq: parseInt(numberStr, 10) },
+    },
+    first: 1,
+  });
+
+  return result.nodes[0]?.id ?? null;
+}
+
+// ---------------------------------------------------------------------------
 // Issue status update
 // ---------------------------------------------------------------------------
 
