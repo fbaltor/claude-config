@@ -225,6 +225,8 @@ describe("fetchFailedCiChecks", () => {
         { id: 5, name: "Deploy", status: "completed", conclusion: "cancelled", app: { slug: "github-actions" }, details_url: null },
         // Skipped — should be excluded
         { id: 6, name: "E2E", status: "completed", conclusion: "skipped", app: { slug: "github-actions" }, details_url: null },
+        // Ignored CI check name (Copilot's Agent job) — should be excluded
+        { id: 7, name: "Agent", status: "completed", conclusion: "failure", app: { slug: "github-actions" }, details_url: "https://example.com/7" },
       ]),
       checks: {
         listForRef: mock.fn(),

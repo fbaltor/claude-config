@@ -7,7 +7,7 @@
 
 import yaml from "js-yaml";
 import { Octokit } from "@octokit/rest";
-import { AI_REVIEWERS } from "./shared.js";
+import { AI_REVIEWERS, IGNORED_CI_CHECK_NAMES } from "./shared.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -71,6 +71,8 @@ export async function fetchFailedCiChecks(
       const slug = run.app?.slug ?? "";
       // Skip AI review bots — those are handled by check-reviews
       if (AI_REVIEWERS.includes(slug)) return false;
+      // Skip known AI review jobs that run as GitHub Actions (same app_slug)
+      if (IGNORED_CI_CHECK_NAMES.includes(run.name)) return false;
       // Only completed failures
       if (run.status !== "completed") return false;
       if (run.conclusion === "success" || run.conclusion === "neutral" || run.conclusion === "skipped") return false;

@@ -84,6 +84,22 @@ export function isReviewBot(author: Author | null): boolean {
   return isBot(author) && AI_REVIEWERS.includes(getAuthorName(author));
 }
 
+/**
+ * Check run names to ignore during CI failure detection.
+ *
+ * These are jobs from AI review tools that run as GitHub Actions (so their
+ * app_slug is "github-actions") rather than as dedicated GitHub Apps. They
+ * can't be filtered by AI_REVIEWERS (which matches app slugs), so we match
+ * on the check run name instead.
+ *
+ * @bot-specific(copilot): The "Agent" job comes from Copilot's dynamic
+ * workflow (dynamic/copilot-pull-request-reviewer). It runs a code review
+ * agent step that can fail without indicating a real CI problem.
+ */
+export const IGNORED_CI_CHECK_NAMES: string[] = [
+  "Agent", // @bot-specific(copilot): Copilot's dynamic review agent job
+];
+
 /** Attribute a thread to its first commenter. */
 export function getThreadAuthor(thread: ReviewThreadNode): string {
   const first = thread.comments.nodes[0];
