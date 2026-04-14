@@ -3,7 +3,11 @@
  */
 
 import { Octokit } from "@octokit/rest";
-import { AI_REVIEWERS } from "./shared.js";
+import {
+  AI_REVIEWERS,
+  COPILOT_REVIEW_JOB_NAMES,
+  COPILOT_WORKFLOW_PATH,
+} from "./shared.js";
 import type { StatusRenderer } from "./check-reviews-renderer.js";
 import { createRenderer } from "./check-reviews-renderer.js";
 import {
@@ -94,6 +98,60 @@ export function isFailedCheck(check: AiCheckRun): boolean {
   );
 }
 
+/**
+ * Extract the workflow run_id from a github-actions check run's details_url.
+ * Expected format: https://github.com/OWNER/REPO/actions/runs/RUN_ID/job/JOB_ID
+ */
+export function extractRunIdFromDetailsUrl(url: string | null | undefined): number | null {
+  if (!url) return null;
+  const match = url.match(/\/actions\/runs\/(\d+)\/job\/\d+/);
+  return match ? parseInt(match[1]!, 10) : null;
+}
+
+/**
+ * Returns true iff the given workflow run belongs to Copilot's review workflow.
+ * Memoizes per run_id via the cache argument. Cache stores the in-flight
+ * promise so concurrent lookups collapse to a single API call.
+ */
+export function isCopilotWorkflowRun(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  runId: number,
+  cache: Map<number, Promise<boolean>>,
+): Promise<boolean> {
+  const cached = cache.get(runId);
+  if (cached !== undefined) return cached;
+
+  const promise = (async () => {
+    try {
+      const { data } = await octokit.actions.getWorkflowRun({
+        owner,
+        repo,
+        run_id: runId,
+      });
+      const path = data.path ?? "";
+      return (
+        path === COPILOT_WORKFLOW_PATH ||
+        path.startsWith(`${COPILOT_WORKFLOW_PATH}/`)
+      );
+    } catch {
+      return false;
+    }
+  })();
+
+  cache.set(runId, promise);
+  return promise;
+}
+
+/**
+ * A "failure" on Agent typically means Copilot opted not to review this PR,
+ * not a real CI failure — treat it as neutral so --wait does not abort.
+ */
+function normalizeCopilotConclusion(conclusion: string | null): string | null {
+  return conclusion === "failure" ? "neutral" : conclusion;
+}
+
 export async function fetchAiCheckRuns(
   octokit: Octokit,
   owner: string,
@@ -133,6 +191,41 @@ export async function fetchAiCheckRuns(
       source: "check_run" as const,
     }));
 
+  // Copilot runs as a github-actions workflow, not under its own app slug.
+  // Match on job name + workflow path to avoid picking up unrelated Agent jobs.
+  const copilotCandidates = allCheckRuns.filter(
+    (run) =>
+      (run.app?.slug ?? "") === "github-actions" &&
+      COPILOT_REVIEW_JOB_NAMES.includes(run.name),
+  );
+
+  const copilotWorkflowCache = new Map<number, Promise<boolean>>();
+  const copilotMatches: AiCheckRun[] = (
+    await Promise.all(
+      copilotCandidates.map(async (run): Promise<AiCheckRun | null> => {
+        const runId = extractRunIdFromDetailsUrl(run.details_url);
+        if (runId == null) return null;
+        const isCopilot = await isCopilotWorkflowRun(
+          octokit,
+          owner,
+          repo,
+          runId,
+          copilotWorkflowCache,
+        );
+        if (!isCopilot) return null;
+        return {
+          id: run.id,
+          name: "Copilot",
+          status: run.status,
+          conclusion: normalizeCopilotConclusion(run.conclusion ?? null),
+          appSlug: "copilot-pull-request-reviewer",
+          detailsUrl: run.details_url ?? null,
+          source: "check_run" as const,
+        };
+      }),
+    )
+  ).filter((x): x is AiCheckRun => x !== null);
+
   // Filter commit statuses to known AI review bots
   // Deduplicate by context (keep latest — the API returns most recent first)
   const seenContexts = new Set<string>();
@@ -157,7 +250,7 @@ export async function fetchAiCheckRuns(
     });
   }
 
-  return [...fromCheckRuns, ...fromStatuses];
+  return [...fromCheckRuns, ...copilotMatches, ...fromStatuses];
 }
 
 export async function getCheckStatus(

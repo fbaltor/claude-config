@@ -2,6 +2,7 @@ import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  extractRunIdFromDetailsUrl,
   fetchAiCheckRuns,
   getCheckStatus,
   isFailedCheck,
@@ -34,6 +35,7 @@ interface MockCommitStatus {
 function makeMockOctokit(
   checkRuns: MockCheckRun[] = [],
   statuses: MockCommitStatus[] = [],
+  workflowRunsByRunId: Record<number, { path: string }> = {},
 ) {
   const checksListForRef = Object.assign(
     mock.fn(async () => ({ data: { check_runs: checkRuns } })),
@@ -43,6 +45,15 @@ function makeMockOctokit(
     mock.fn(async () => ({ data: statuses })),
     { _mockData: statuses },
   );
+  const getWorkflowRun = mock.fn(async ({ run_id }: { run_id: number }) => {
+    const wf = workflowRunsByRunId[run_id];
+    if (!wf) {
+      const err = new Error("Not Found") as Error & { status: number };
+      err.status = 404;
+      throw err;
+    }
+    return { data: wf };
+  });
 
   return {
     checks: {
@@ -51,6 +62,9 @@ function makeMockOctokit(
     },
     repos: {
       listCommitStatusesForRef: statusesListForRef,
+    },
+    actions: {
+      getWorkflowRun,
     },
     paginate: mock.fn(async (method: unknown) => {
       const fn = method as { _mockData?: unknown[] };
@@ -346,6 +360,189 @@ describe("fetchAiCheckRuns", () => {
       assert.equal(result[0]!.source, "check_run");
       assert.equal(result[1]!.source, "commit_status");
     });
+  });
+
+  describe("Copilot Agent job matching", () => {
+    const copilotDetailsUrl = "https://github.com/o/r/actions/runs/555/job/777";
+
+    it("includes Agent job when workflow path matches", async () => {
+      const octokit = makeMockOctokit(
+        [
+          {
+            id: 777,
+            name: "Agent",
+            status: "in_progress",
+            conclusion: null,
+            app: { slug: "github-actions" },
+            details_url: copilotDetailsUrl,
+          },
+        ],
+        [],
+        { 555: { path: "dynamic/copilot-pull-request-reviewer" } },
+      );
+
+      const result = await fetchAiCheckRuns(octokit as never, "o", "r", "sha");
+
+      assert.equal(result.length, 1);
+      assert.equal(result[0]!.name, "Copilot");
+      assert.equal(result[0]!.appSlug, "copilot-pull-request-reviewer");
+      assert.equal(result[0]!.status, "in_progress");
+    });
+
+    it("excludes Agent job when workflow path does not match", async () => {
+      const octokit = makeMockOctokit(
+        [
+          {
+            id: 777,
+            name: "Agent",
+            status: "completed",
+            conclusion: "success",
+            app: { slug: "github-actions" },
+            details_url: "https://github.com/o/r/actions/runs/999/job/777",
+          },
+        ],
+        [],
+        { 999: { path: ".github/workflows/other.yml" } },
+      );
+
+      const result = await fetchAiCheckRuns(octokit as never, "o", "r", "sha");
+
+      assert.equal(result.length, 0);
+    });
+
+    it("excludes Agent job when getWorkflowRun 404s", async () => {
+      const octokit = makeMockOctokit(
+        [
+          {
+            id: 777,
+            name: "Agent",
+            status: "completed",
+            conclusion: "success",
+            app: { slug: "github-actions" },
+            details_url: copilotDetailsUrl,
+          },
+        ],
+        [],
+        {},
+      );
+
+      const result = await fetchAiCheckRuns(octokit as never, "o", "r", "sha");
+
+      assert.equal(result.length, 0);
+    });
+
+    it("excludes Agent job when details_url is missing or malformed", async () => {
+      const octokit = makeMockOctokit(
+        [
+          {
+            id: 777,
+            name: "Agent",
+            status: "completed",
+            conclusion: "success",
+            app: { slug: "github-actions" },
+            details_url: null,
+          },
+        ],
+        [],
+        {},
+      );
+
+      const result = await fetchAiCheckRuns(octokit as never, "o", "r", "sha");
+      assert.equal(result.length, 0);
+    });
+
+    it("normalizes Copilot Agent failure to neutral", async () => {
+      const octokit = makeMockOctokit(
+        [
+          {
+            id: 777,
+            name: "Agent",
+            status: "completed",
+            conclusion: "failure",
+            app: { slug: "github-actions" },
+            details_url: copilotDetailsUrl,
+          },
+        ],
+        [],
+        { 555: { path: "dynamic/copilot-pull-request-reviewer" } },
+      );
+
+      const result = await fetchAiCheckRuns(octokit as never, "o", "r", "sha");
+
+      assert.equal(result.length, 1);
+      assert.equal(result[0]!.conclusion, "neutral");
+      assert.equal(isFailedCheck(result[0]!), false);
+    });
+
+    it("caches workflow-run lookups per run_id", async () => {
+      const octokit = makeMockOctokit(
+        [
+          {
+            id: 777,
+            name: "Agent",
+            status: "in_progress",
+            conclusion: null,
+            app: { slug: "github-actions" },
+            details_url: "https://github.com/o/r/actions/runs/555/job/777",
+          },
+          {
+            id: 778,
+            name: "Agent",
+            status: "in_progress",
+            conclusion: null,
+            app: { slug: "github-actions" },
+            details_url: "https://github.com/o/r/actions/runs/555/job/778",
+          },
+        ],
+        [],
+        { 555: { path: "dynamic/copilot-pull-request-reviewer" } },
+      );
+
+      const result = await fetchAiCheckRuns(octokit as never, "o", "r", "sha");
+
+      assert.equal(result.length, 2);
+      assert.equal(octokit.actions.getWorkflowRun.mock.calls.length, 1);
+    });
+
+    it("does not double-count an Agent job already matched via AI_REVIEWERS", async () => {
+      const octokit = makeMockOctokit(
+        [
+          {
+            id: 777,
+            name: "Agent",
+            status: "completed",
+            conclusion: "success",
+            app: { slug: "copilot-pull-request-reviewer" },
+            details_url: null,
+          },
+        ],
+        [],
+        {},
+      );
+
+      const result = await fetchAiCheckRuns(octokit as never, "o", "r", "sha");
+      assert.equal(result.length, 1);
+      assert.equal(result[0]!.appSlug, "copilot-pull-request-reviewer");
+      assert.equal(result[0]!.name, "Agent");
+    });
+  });
+});
+
+describe("extractRunIdFromDetailsUrl", () => {
+  it("parses a valid github-actions details_url", () => {
+    const url = "https://github.com/owner/repo/actions/runs/12345/job/67890";
+    assert.equal(extractRunIdFromDetailsUrl(url), 12345);
+  });
+
+  it("returns null for null/undefined/empty", () => {
+    assert.equal(extractRunIdFromDetailsUrl(null), null);
+    assert.equal(extractRunIdFromDetailsUrl(undefined), null);
+    assert.equal(extractRunIdFromDetailsUrl(""), null);
+  });
+
+  it("returns null for non-matching urls", () => {
+    assert.equal(extractRunIdFromDetailsUrl("https://coderabbit.ai/review/42"), null);
+    assert.equal(extractRunIdFromDetailsUrl("https://github.com/owner/repo/pull/7"), null);
   });
 });
 

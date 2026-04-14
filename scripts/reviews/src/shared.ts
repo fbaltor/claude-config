@@ -76,7 +76,7 @@ export function getAuthorType(author: Author | null): "bot" | "human" {
  */
 export const AI_REVIEWERS: string[] = [
   "coderabbitai",                    // @bot-specific(coderabbit)
-  "copilot-pull-request-reviewer",   // @bot-specific(copilot): unverified — confirm on first real review
+  "copilot-pull-request-reviewer",   // @bot-specific(copilot): verified via dynamic/copilot-pull-request-reviewer workflow Agent job
   "kody-ai",                         // @bot-specific(kody)
 ];
 
@@ -99,6 +99,23 @@ export function isReviewBot(author: Author | null): boolean {
 export const IGNORED_CI_CHECK_NAMES: string[] = [
   "Agent", // @bot-specific(copilot): Copilot's dynamic review agent job
 ];
+
+/**
+ * Job names published by Copilot's dynamic review workflow.
+ * Paired with COPILOT_WORKFLOW_PATH below — both must match before we treat
+ * a check run as a Copilot review progress signal.
+ *
+ * @bot-specific(copilot): Verify against a real PR — if Copilot renames the
+ * job, update this list. See also IGNORED_CI_CHECK_NAMES which must stay
+ * in sync so the same job isn't double-reported.
+ */
+export const COPILOT_REVIEW_JOB_NAMES: string[] = ["Agent"];
+
+/**
+ * The dynamic workflow path Copilot uses for PR review runs.
+ * Verified against live PRs — update if GitHub renames the workflow.
+ */
+export const COPILOT_WORKFLOW_PATH = "dynamic/copilot-pull-request-reviewer";
 
 /** Attribute a thread to its first commenter. */
 export function getThreadAuthor(thread: ReviewThreadNode): string {
