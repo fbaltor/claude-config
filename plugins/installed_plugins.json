@@ -15,10 +15,10 @@
     "vercel@claude-plugins-official": [
       {
         "scope": "user",
-        "installPath": "/home/fbaltor/.claude/plugins/cache/claude-plugins-official/vercel/3067e04bb854",
-        "version": "3067e04bb854",
+        "installPath": "/home/fbaltor/.claude/plugins/cache/claude-plugins-official/vercel/0.40.0",
+        "version": "0.40.0",
         "installedAt": "2026-03-24T18:19:27.900Z",
-        "lastUpdated": "2026-04-09T19:58:22.856Z",
+        "lastUpdated": "2026-04-13T00:38:01.927Z",
         "gitCommitSha": "2e79fc9698b0f25253a238f4ac5ab6d3265d266d"
       }
     ]
