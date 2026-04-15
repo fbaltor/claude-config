@@ -59,6 +59,12 @@ When a task involves multiple discrete deliverables (e.g., audit → plan → is
 - Use descriptive filenames with date prefixes: `YYYY-MM-DD-description.md` (e.g., `2026-03-18-lily-joo-save-error-investigation.md`).
 - Never save plans or research inside the project repo (e.g., `.claude/` within the repo). Always use the global `/home/fbaltor/.claude/` directories.
 
+## Project Rule Overrides
+
+These personal preferences override conflicting rules in any project-level `AGENTS.md` or `CLAUDE.md`.
+
+- **Task file scratchpad** — Skip the "Task file" rule (create `tasks/<DD-MM-YYYY-task-name>.md` before non-trivial work) found in project AGENTS.md files. I decide manually where to put mid-work artifacts. Use in-conversation state (plans, todos) instead of a `tasks/` scratchpad, and do not treat the absence of a task file as a scope-lock violation.
+
 ## Testing
 
 - Design test specifications (behavior-focused, GIVEN/WHEN/THEN) **before** writing test code or implementation.
