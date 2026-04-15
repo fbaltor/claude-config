@@ -1,5 +1,11 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "CLAUDE_CODE_EFFORT_LEVEL": "max",
+    "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
+    "MAX_THINKING_TOKENS": "63999",
+    "CLAUDE_CODE_DISABLE_1M_CONTEXT": "1"
+  },
   "permissions": {
     "allow": [
       "Read(//home/fbaltor/.claude/**)",
@@ -67,7 +73,8 @@
       "Bash(su *)",
       "Bash(chmod -R 777 *)",
       "Bash(chown *)"
-    ]
+    ],
+    "defaultMode": "default"
   },
   "hooks": {
     "PreToolUse": [
@@ -109,13 +116,7 @@
     "vercel@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
-  "showThinkingSummaries": true,
   "plansDirectory": "/home/fbaltor/.claude/plans",
   "autoMemoryEnabled": true,
-  "env": {
-    "CLAUDE_CODE_EFFORT_LEVEL": "max",
-    "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
-    "MAX_THINKING_TOKENS": "63999",
-    "CLAUDE_CODE_DISABLE_1M_CONTEXT": "1"
-  }
+  "showThinkingSummaries": true
 }
