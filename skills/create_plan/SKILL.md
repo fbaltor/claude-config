@@ -151,7 +151,33 @@ Once aligned on approach:
    Does this phasing make sense? Should I adjust the order or granularity?
    ```
 
-2. **Get feedback on structure** before writing details
+2. **Get feedback on structure** before writing details.
+
+3. **Apply phase-splitting discipline.** Before finalizing the phase list, check each phase against the [Splitting phases](#splitting-phases) rule. If a phase bundles independent deliverables (different types, different rollback scope, different dependency chains), propose splitting it:
+   ```
+   I'm considering splitting Phase N ("<name>") into:
+   - Phase Na: <independent deliverable 1>
+   - Phase Nb: <independent deliverable 2>
+
+   Reasoning: <why they're independent>. Should I split?
+   ```
+
+4. **Confirm WHAT vs HOW partitioning for each phase.** Before drafting details, surface the Behavior/Implementation split as an explicit design decision — this is especially important for code phases under meta-workflow TDD isolation, but also improves reviewability for manual execution:
+   ```
+   For Phase N ("<name>"), let me confirm the partition:
+   - **Behavior** (what the phase must deliver, observable from outside):
+     - <bullet 1>
+     - <bullet 2>
+   - **Implementation Notes** (how to deliver it — code, SQL, file paths):
+     - <approach sketch>
+
+   Under meta-workflow TDD isolation, the test-writer sub-agent sees Behavior but NOT Implementation Notes, so any implementation detail that leaks into Behavior undermines the isolation. Does this split look right?
+   ```
+
+5. **Ask about execution mode.** Whether the plan will be executed via `/meta-workflow` (autonomous multi-phase runner) or manually phase-by-phase affects whether to include the top-level Meta-Workflow Structure section and per-phase metadata lines:
+   ```
+   Will this plan be executed via `/meta-workflow`, or manually phase-by-phase? If via meta-workflow, I'll include the phase contract preview table and per-phase metadata hints.
+   ```
 
 ### Step 4: Detailed Plan Writing
 
@@ -194,12 +220,41 @@ After structure approval:
 
 [High-level strategy and reasoning]
 
+<!-- OPTIONAL: Include this section only when the plan will be executed via /meta-workflow. -->
+## Meta-Workflow Structure
+
+This plan is structured for execution via the meta-workflow skill (`~/.claude/skills/meta-workflow/SKILL.md`). Each phase has:
+
+- **`### Behavior`** — feeds the phase contract's `behavior_spec`. Visible to the test-writer subagent under TDD isolation. Describes WHAT the phase must accomplish, not HOW.
+- **`### Implementation Notes`** — feeds `docs_for_impl`. Code, SQL, file structure, dependencies. Visible only to the implementer subagent.
+- **`### Success Criteria`** — split into `Automated Verification` (feeds `exit_criteria`) and `Manual Verification` (human sign-off).
+
+### Phase contract preview
+
+| Phase | Type   | TDD   | Critic          | Notes |
+|-------|--------|-------|-----------------|-------|
+| 1     | code   | true  | general-purpose | ...   |
+| 2     | config | false | general-purpose | ...   |
+<!-- END OPTIONAL -->
+
 ## Phase 1: [Descriptive Name]
+
+<!-- OPTIONAL phase metadata — include when the plan may be executed via /meta-workflow. -->
+**Type**: code | config | docs | mixed
+**TDD**: true | false
+**TDD skip reason**: <required only when TDD: false on a code-typed phase>
+<!-- END OPTIONAL -->
 
 ### Overview
 [What this phase accomplishes]
 
-### Changes Required:
+### Behavior
+
+- [Observable outcome 1 — WHAT the phase must deliver, not HOW]
+- [Observable outcome 2]
+- [...]
+
+### Implementation Notes
 
 #### 1. [Component/File Group]
 **File**: `path/to/file.ext`
@@ -217,12 +272,11 @@ After structure approval:
 - [ ] Type checking passes
 - [ ] Linting passes
 - [ ] Integration tests pass
+- [ ] SQL / shell / log-grep assertions for DB or system state (prefer these over manual checks whenever mechanically expressible)
 
 #### Manual Verification:
-- [ ] Feature works as expected when tested via UI
-- [ ] Performance is acceptable under load
-- [ ] Edge case handling verified manually
-- [ ] No regressions in related features
+- [ ] Truly-manual checks only (UI render quality, notification behavior, human-perception-dependent ergonomics)
+- [ ] No regressions in related features (where regression test coverage is infeasible)
 
 **Implementation Note**: After completing this phase and all automated verification passes, pause here for manual confirmation from the human that the manual testing was successful before proceeding to the next phase.
 
@@ -260,6 +314,7 @@ After structure approval:
 
 - Similar implementation: `[file:line]`
 - Related research: `~/.claude/research/[relevant].md`
+- Meta-workflow skill (if applicable): `~/.claude/skills/meta-workflow/SKILL.md`
 ````
 
 ### Step 5: Review
@@ -272,6 +327,7 @@ After structure approval:
    Please review it and let me know:
    - Are the phases properly scoped?
    - Are the success criteria specific enough?
+   - Are Behavior bullets free of implementation leakage?
    - Any technical details that need adjustment?
    - Missing edge cases or considerations?
    ```
@@ -280,6 +336,7 @@ After structure approval:
    - Add missing phases
    - Adjust technical approach
    - Clarify success criteria (both automated and manual)
+   - Re-partition Behavior vs Implementation Notes if leakage is flagged
    - Add/remove scope items
 
 3. **Continue refining** until the user is satisfied
@@ -303,6 +360,7 @@ After structure approval:
    - Research actual code patterns using parallel sub-agents
    - Include specific file paths and line numbers
    - Write measurable success criteria with clear automated vs manual distinction
+   - **Separate WHAT (observable behavior) from HOW (implementation detail) per phase.** The `### Behavior` section is the contract; `### Implementation Notes` is the recipe. Do not mix.
 
 4. **Be Practical**:
    - Focus on incremental, testable changes
@@ -326,12 +384,15 @@ After structure approval:
    - Specific files that should exist
    - Code compilation/type checking
    - Automated test suites
+   - **SQL / shell / log-grep assertions** that capture DB or system state (`psql -c "SELECT ..."`, `grep -q ...`, `test -f ...`)
 
 2. **Manual Verification** (requires human testing):
-   - UI/UX functionality
+   - UI/UX render quality
    - Performance under real conditions
    - Edge cases that are hard to automate
    - User acceptance criteria
+
+**Preference rule:** Before adding an item to Manual Verification, ask whether it can be expressed as an automated assertion. "Conversation appears in UI with correct timestamps" is often really "`SELECT MIN(created_at), MAX(created_at) FROM messages WHERE conversation_id = X` matches the expected range." Reserve Manual Verification for checks that genuinely require human judgment (visual layout, subjective UX, notification-bell behavior).
 
 **Format example:**
 ```markdown
@@ -342,6 +403,7 @@ After structure approval:
 - [ ] All unit tests pass
 - [ ] No linting errors: `pnpm lint`
 - [ ] Type checking passes: `pnpm check-types`
+- [ ] `psql $DB_URL -c "SELECT COUNT(*) FROM new_table"` returns expected count after seed
 
 #### Manual Verification:
 - [ ] New feature appears correctly in the UI
@@ -349,6 +411,87 @@ After structure approval:
 - [ ] Error messages are user-friendly
 - [ ] Feature works correctly on mobile devices
 ```
+
+## Meta-Workflow Alignment
+
+Plans created by this skill should be structured so they can optionally be executed via the meta-workflow skill (`~/.claude/skills/meta-workflow/SKILL.md`) — a multi-phase autonomous runner with TDD isolation and adversarial-critic gating. The discipline below also improves readability for manual execution, so apply it regardless of intended execution mode.
+
+### WHAT vs HOW partitioning
+
+The `### Behavior` section of each phase is the contract — what the phase must deliver, observable from outside. The `### Implementation Notes` section is the recipe — how to deliver it, with code, SQL, file paths, and dependencies.
+
+Under meta-workflow TDD isolation, the test-writer sub-agent sees `Behavior` but NOT `Implementation Notes`. Implementation detail leaking into `Behavior` undermines the isolation: the test-writer ends up seeing internals it should not, and the tests it writes are biased toward a specific implementation rather than the observable contract.
+
+Good `Behavior` bullet (stays abstract):
+> `parseAndStore(prisma, config)` returns `{importId, messageCount}`. Calling with a duplicate `(fileHash, accountId, inboxId)` returns the existing `importId` without reparsing or writing new rows.
+
+Bad `Behavior` bullet (leaks HOW):
+> Use `prisma.whatsAppImport.findFirst` to check for duplicates before calling `parseChat`.
+
+If in doubt, err toward quarantining content in `Implementation Notes`. Meta-workflow treats the `### Behavior` section as authoritative — anything outside it is invisible to the test-writer.
+
+### Splitting phases
+
+Split a single proposed phase into sub-phases (e.g., `Phase 1a`, `Phase 1b`) when ANY of these apply:
+- Deliverables are independent (different artifact types, different rollback scope)
+- Dependencies differ (one can land before the other without blocking)
+- A reviewer would want to critique them separately
+- Rollback of one should not force rollback of the other
+
+Rule of thumb: *"Would I want to critique these together, or separately?"* If separately, split. If the answer is ambiguous, lean toward splitting — smaller phases improve critic signal and resumability under meta-workflow.
+
+### Converting manual gates to automated
+
+Prefer SQL assertions, shell commands, or log greps over "UI shows X" / "operator verifies Y" whenever mechanically checkable:
+
+| Weak manual gate                          | Stronger automated proxy                                                     |
+|-------------------------------------------|------------------------------------------------------------------------------|
+| "Conversation appears in UI"              | `psql -c "SELECT 1 FROM conversations WHERE id=$ID"` returns one row         |
+| "No duplicate messages after re-run"      | `SELECT COUNT(*) FROM messages WHERE conversation_id=$ID` equals pre-rerun   |
+| "No errors in logs during operation"      | `grep -q "ERROR" logfile && exit 1 \|\| exit 0`                              |
+| "Migration produced expected tables"      | `SELECT tablename FROM pg_tables WHERE tablename IN (...)` returns all names |
+| "Idempotency index exists"                | `SELECT indexname FROM pg_indexes WHERE indexname='...'` returns one row     |
+
+Reserve `Manual Verification` for checks that genuinely cannot be mechanized: UI render quality, notification-bell behavior, human-perception-dependent ergonomics, human-agent interaction workflows.
+
+### Folding validation into the producing phase
+
+If a downstream "validation" phase's assertions are all SQL/shell checks over artifacts the producing phase already completed, fold those assertions into the producing phase's `Exit Criteria (automated)`. Reserve separate validation phases for true manual sign-off.
+
+Example:
+- A "Phase N: End-to-End Validation" whose every step is "run command; assert state" belongs in Phase N-1's automated exit criteria.
+- A "Phase N: Manual Sign-Off" that validates UI rendering, notification behavior, or human-agent workflow stands on its own as a manual-only phase.
+
+Under meta-workflow, manual-only phases are escalated via `AskUserQuestion` rather than auto-run by a subagent.
+
+### Phase metadata
+
+Each phase may include optional metadata lines immediately after the phase heading:
+
+- `**Type**: code | config | docs | mixed` — feeds the phase contract's `type` field. `code` = produces runnable logic. `config` = schema, infra, env wiring. `docs` = documentation-only. `mixed` = a combination.
+- `**TDD**: true | false` — overrides the default (`code` → `true`, others → `false`).
+- `**TDD skip reason**: ...` — required when `TDD: false` on a `code`-typed phase. Explains why the phase has no behavior to test in isolation (e.g., schema-only, exercised by a downstream phase).
+
+These are plain markdown bold lines — readable for humans; parseable by meta-workflow's contract-derivation heuristic. Omit entirely for plans not destined for meta-workflow.
+
+### Top-level "Meta-Workflow Structure" section
+
+Include the `## Meta-Workflow Structure` section (with phase contract preview table) in the plan ONLY when the user has indicated the plan will be executed via `/meta-workflow`. It adds noise to plans destined for manual execution.
+
+When present, it should contain:
+- A short paragraph explaining the `Behavior` / `Implementation Notes` / `Success Criteria` structure
+- A table with columns: `Phase | Type | TDD | Critic | Notes` — one row per phase, matching the per-phase metadata
+
+### What stays unchanged
+
+Meta-workflow alignment is additive. The following remain unchanged regardless:
+
+- Iterative Q&A with the user (skeptical stance, clarification loops, verification-before-planning)
+- Sub-agent research spawning
+- File:line references in Key Discoveries and References
+- Specific code blocks in Implementation Notes
+- "No open questions in final plan" rule
+- "What We're NOT Doing" section and scope discipline
 
 ## Common Patterns
 
