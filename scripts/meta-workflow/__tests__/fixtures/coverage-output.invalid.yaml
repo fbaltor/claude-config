@@ -1,0 +1,5 @@
+coverage:
+  - behavior: Handles text/media/system message types
+    status: completely
+    evidence: mapper.test.ts:14
+gaps_found: false

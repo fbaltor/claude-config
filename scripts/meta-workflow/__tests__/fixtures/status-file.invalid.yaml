@@ -1,0 +1,12 @@
+task: META-001
+plan_doc: plans/sample-plan.md
+phases:
+  - id: 01-scaffold
+    status: bogus-status
+    contract_confirmed: true
+    stages: {}
+    critic_state:
+      iteration: 0
+      pending_issues: []
+      resolved_issues: []
+    artifacts: {}

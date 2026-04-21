@@ -1,0 +1,15 @@
+checklist_results:
+  - item: Every behavior_spec bullet is covered by at least one failing-if-broken test
+    result: PASS
+    evidence: packages/foo/__tests__/mapper.test.ts:14
+  - item: No implicit I/O introduced (fs, net, db)
+    result: PASS
+    evidence: packages/foo/src/mapper.ts (no imports of fs/net)
+issues:
+  - id: nit-naming
+    severity: LOW
+    summary: Variable name `msg` could be clearer as `incomingMessage`
+    evidence: packages/foo/src/mapper.ts:22
+    suggested_fix: Rename for clarity.
+remaining_actionable_issues: NONE
+frame_concerns: NONE

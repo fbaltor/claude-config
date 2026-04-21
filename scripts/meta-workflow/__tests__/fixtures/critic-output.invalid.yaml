@@ -1,0 +1,8 @@
+checklist_results: []
+issues:
+  - id: bad-sev
+    severity: HIGHH
+    summary: Some issue
+    evidence: foo.ts:1
+remaining_actionable_issues: NONE
+frame_concerns: NONE
