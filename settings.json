@@ -13,6 +13,7 @@
       "Edit(./**)",
       "Read(//tmp/**)",
       "Edit(//tmp/**)",
+      "Write(//tmp/**)",
       "WebSearch",
       "WebFetch",
       "Bash(*)",
