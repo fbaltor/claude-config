@@ -81,12 +81,12 @@ export async function fetchUnresolvedThreads(
   let cursor: string | null = null;
 
   do {
-    const data = await gql<ThreadsPage>(UNRESOLVED_THREADS_QUERY, {
+    const data = (await gql(UNRESOLVED_THREADS_QUERY, {
       owner,
       repo,
       number: pr,
       cursor,
-    });
+    })) as ThreadsPage;
 
     const page = data.repository.pullRequest.reviewThreads;
     for (const node of page.nodes) {

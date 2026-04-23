@@ -1,4 +1,6 @@
 import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { Octokit } from "@octokit/rest";
 
 export const DEFAULT_OWNER = "Jumpstart-Immigration";
@@ -20,6 +22,48 @@ export function getGitHubToken(): string {
     );
     process.exit(1);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Local branch detection (fs-based — no `git` shell-out)
+// ---------------------------------------------------------------------------
+
+/**
+ * Walks up from `startDir` looking for a `.git` entry. Returns the resolved
+ * git directory — which for a worktree is the worktree-specific dir under
+ * `<main>/.git/worktrees/<name>`, following the `gitdir:` pointer.
+ */
+function resolveGitDir(startDir: string): string | null {
+  let dir = resolve(startDir);
+  while (true) {
+    const candidate = join(dir, ".git");
+    if (existsSync(candidate)) {
+      if (statSync(candidate).isDirectory()) return candidate;
+      const match = readFileSync(candidate, "utf-8").trim().match(/^gitdir:\s*(.+)$/);
+      if (match) {
+        const pointer = match[1].trim();
+        return isAbsolute(pointer) ? pointer : resolve(dir, pointer);
+      }
+      return null;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+}
+
+/**
+ * Reads the current branch name by parsing `HEAD` directly. Returns `null`
+ * when the caller isn't in a git repo, or HEAD is detached.
+ */
+export function readCurrentBranch(startDir: string): string | null {
+  const gitDir = resolveGitDir(startDir);
+  if (!gitDir) return null;
+  const headPath = join(gitDir, "HEAD");
+  if (!existsSync(headPath)) return null;
+  const head = readFileSync(headPath, "utf-8").trim();
+  const match = head.match(/^ref:\s*refs\/heads\/(.+)$/);
+  return match ? match[1].trim() : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -64,29 +108,42 @@ export async function parseCommonArgs(args: string[]): Promise<CommonCliArgs> {
     return { pr: n, owner, repo };
   }
 
-  // Try to detect from current branch via REST API
+  // npm run rewrites cwd to the package dir but preserves the caller's cwd
+  // in INIT_CWD — use it so branch detection works when invoked via
+  // `npm --prefix ... run`.
+  const callerCwd = process.env["INIT_CWD"] ?? process.cwd();
+  const branch = readCurrentBranch(callerCwd);
+  if (!branch) {
+    console.error(
+      `Could not detect PR number — no branch found for ${callerCwd} ` +
+        `(detached HEAD or not a git repo). Pass it explicitly: --pr <number>`,
+    );
+    process.exit(1);
+  }
+
+  const head = `${owner}:${branch}`;
   try {
-    const branch = execFileSync("git", ["branch", "--show-current"], {
-      encoding: "utf-8",
-    }).trim();
-    if (branch) {
-      const token = getGitHubToken();
-      const octokit = new Octokit({ auth: token });
-      const { data } = await octokit.pulls.list({
-        owner,
-        repo,
-        head: `${owner}:${branch}`,
-        state: "open",
-        per_page: 1,
-      });
-      if (data[0]) return { pr: data[0].number, owner, repo };
-    }
-  } catch {
-    // ignore
+    const octokit = new Octokit({ auth: getGitHubToken() });
+    const { data } = await octokit.pulls.list({
+      owner,
+      repo,
+      head,
+      state: "open",
+      per_page: 1,
+    });
+    if (data[0]) return { pr: data[0].number, owner, repo };
+  } catch (err) {
+    console.error(
+      `Could not detect PR number — GitHub API error while looking up ` +
+        `${owner}/${repo} head=${head}: ${(err as Error).message}. ` +
+        `Pass it explicitly: --pr <number>`,
+    );
+    process.exit(1);
   }
 
   console.error(
-    "Could not detect PR number. Pass it explicitly: --pr <number>",
+    `Could not detect PR number — no open PR found for ${owner}/${repo} ` +
+      `head=${head}. Pass it explicitly: --pr <number>`,
   );
   process.exit(1);
 }
