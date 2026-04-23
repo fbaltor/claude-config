@@ -125,7 +125,33 @@ async function main(): Promise<void> {
       console.error("No project name provided.");
     }
   } else {
-    // No recognized flag — minimal context
+    const hasContent = args.some((a) => a.trim().length > 0);
+
+    if (!hasContent) {
+      // No args — print usage help
+      console.log("## /linear usage\n");
+      console.log("| Command | What it does |");
+      console.log("|---|---|");
+      console.log(
+        "| `/linear --fetch-issue` | Fetch the issue parsed from the current git branch |"
+      );
+      console.log(
+        "| `/linear --fetch-issue JUMP-304` | Fetch a specific issue by identifier |"
+      );
+      console.log(
+        "| `/linear --fetch-project <name>` | Fetch a project overview (state, docs, up to 50 issues) |"
+      );
+      console.log(
+        "| `/linear <free-form request>` | Inject branch/issue context and let Claude assist using the deterministic scripts |"
+      );
+      console.log();
+      console.log(
+        "Related: `/linear-push-doc <file>` pushes a markdown doc to its linked Linear document."
+      );
+      return;
+    }
+
+    // Free-form — minimal context for Claude to reason over
     const branch = getCurrentBranch();
     if (branch) {
       const issueId = parseIssueId(branch);
