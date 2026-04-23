@@ -4,6 +4,7 @@
 
 import { Octokit } from "@octokit/rest";
 import {
+  AI_REVIEWER_REQUESTED_LOGINS,
   AI_REVIEWERS,
   COPILOT_REVIEW_JOB_NAMES,
   COPILOT_WORKFLOW_PATH,
@@ -253,6 +254,44 @@ export async function fetchAiCheckRuns(
   return [...fromCheckRuns, ...copilotMatches, ...fromStatuses];
 }
 
+/**
+ * Query the PR's requested reviewers and synthesize a "queued" AiCheckRun for
+ * any AI bot that has been requested but hasn't started a check run yet.
+ *
+ * Without this, a bot that is requested-but-idle (e.g., Copilot auto-added as
+ * a reviewer before its workflow fires) is invisible to the check-runs API,
+ * so waitForCompletion would return prematurely.
+ */
+export async function fetchPendingAiReviewRequests(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  pr: number,
+): Promise<AiCheckRun[]> {
+  const { data } = await octokit.pulls.listRequestedReviewers({
+    owner,
+    repo,
+    pull_number: pr,
+  });
+
+  const pending: AiCheckRun[] = [];
+  for (const user of data.users ?? []) {
+    const meta = AI_REVIEWER_REQUESTED_LOGINS[user.login];
+    if (!meta) continue;
+    pending.push({
+      // Negative id avoids collision with real check-run ids.
+      id: -user.id,
+      name: meta.displayName,
+      status: "queued",
+      conclusion: null,
+      appSlug: meta.appSlug,
+      detailsUrl: null,
+      source: "check_run",
+    });
+  }
+  return pending;
+}
+
 export async function getCheckStatus(
   octokit: Octokit,
   owner: string,
@@ -261,7 +300,18 @@ export async function getCheckStatus(
   cachedSha?: string,
 ): Promise<CheckStatusResult> {
   const headSha = cachedSha ?? await getHeadSha(octokit, owner, repo, pr);
-  const checks = await fetchAiCheckRuns(octokit, owner, repo, headSha);
+  const [realChecks, pendingRequests] = await Promise.all([
+    fetchAiCheckRuns(octokit, owner, repo, headSha),
+    fetchPendingAiReviewRequests(octokit, owner, repo, pr),
+  ]);
+
+  // If a bot already has a real check run for this SHA, drop the synthetic
+  // pending entry so we don't double-count.
+  const existingAppSlugs = new Set(realChecks.map((c) => c.appSlug));
+  const pendingNotYetStarted = pendingRequests.filter(
+    (p) => !existingAppSlugs.has(p.appSlug),
+  );
+  const checks = [...realChecks, ...pendingNotYetStarted];
 
   const allCompleted = checks.length === 0 || checks.every((c) => c.status === "completed");
 

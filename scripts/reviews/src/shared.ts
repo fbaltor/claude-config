@@ -117,6 +117,27 @@ export const COPILOT_REVIEW_JOB_NAMES: string[] = ["Agent"];
  */
 export const COPILOT_WORKFLOW_PATH = "dynamic/copilot-pull-request-reviewer";
 
+/**
+ * Maps the GitHub user login shown in `pulls.listRequestedReviewers.users[].login`
+ * to the bot's canonical display name and app slug. Used to synthesize "pending"
+ * check entries when a bot has been requested as a reviewer but hasn't started
+ * a check run yet — otherwise --wait returns prematurely thinking no bots are
+ * running.
+ *
+ * @bot-specific(copilot): The login is `Copilot` (capital C), which is
+ * different from the app slug `copilot-pull-request-reviewer` used elsewhere.
+ * Verify via `GET /repos/{o}/{r}/pulls/{n}/requested_reviewers` on a live PR.
+ */
+export const AI_REVIEWER_REQUESTED_LOGINS: Record<
+  string,
+  { displayName: string; appSlug: string }
+> = {
+  Copilot: {
+    displayName: "Copilot",
+    appSlug: "copilot-pull-request-reviewer",
+  },
+};
+
 /** Attribute a thread to its first commenter. */
 export function getThreadAuthor(thread: ReviewThreadNode): string {
   const first = thread.comments.nodes[0];

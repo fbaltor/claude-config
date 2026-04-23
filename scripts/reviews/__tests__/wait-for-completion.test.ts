@@ -47,8 +47,12 @@ function makePollOctokit(sequence: MockCheckRun[][], headSha = "abc123") {
     data: { head: { sha: headSha } },
   }));
 
+  const listRequestedReviewers = mock.fn(async () => ({
+    data: { users: [], teams: [] },
+  }));
+
   return {
-    pulls: { get: pullsGet },
+    pulls: { get: pullsGet, listRequestedReviewers },
     checks: {
       listForRef,
       rerequestRun: mock.fn(async () => ({})),

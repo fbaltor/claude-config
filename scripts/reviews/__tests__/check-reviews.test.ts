@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   extractRunIdFromDetailsUrl,
   fetchAiCheckRuns,
+  fetchPendingAiReviewRequests,
   getCheckStatus,
   isFailedCheck,
   rerunFailedChecks,
@@ -32,10 +33,16 @@ interface MockCommitStatus {
   creator: { login: string } | null;
 }
 
+interface MockRequestedReviewer {
+  login: string;
+  id: number;
+}
+
 function makeMockOctokit(
   checkRuns: MockCheckRun[] = [],
   statuses: MockCommitStatus[] = [],
   workflowRunsByRunId: Record<number, { path: string }> = {},
+  requestedReviewers: MockRequestedReviewer[] = [],
 ) {
   const checksListForRef = Object.assign(
     mock.fn(async () => ({ data: { check_runs: checkRuns } })),
@@ -54,6 +61,9 @@ function makeMockOctokit(
     }
     return { data: wf };
   });
+  const listRequestedReviewers = mock.fn(async () => ({
+    data: { users: requestedReviewers, teams: [] },
+  }));
 
   return {
     checks: {
@@ -65,6 +75,9 @@ function makeMockOctokit(
     },
     actions: {
       getWorkflowRun,
+    },
+    pulls: {
+      listRequestedReviewers,
     },
     paginate: mock.fn(async (method: unknown) => {
       const fn = method as { _mockData?: unknown[] };
@@ -869,5 +882,112 @@ describe("getCheckStatus", () => {
     assert.equal(result.headSha, "deadbeef");
     // Verify paginate was called (meaning fetchAiCheckRuns ran with our ref)
     assert.equal(octokit.paginate.mock.calls.length, 2);
+  });
+
+  it("synthesizes a queued entry for an AI bot in requested_reviewers without a check run", async () => {
+    const octokit = makeMockOctokit(
+      [],
+      [],
+      {},
+      [{ login: "Copilot", id: 175728472 }],
+    );
+
+    const result = await getCheckStatus(octokit as never, "o", "r", 311, "sha1");
+
+    assert.equal(result.checks.length, 1);
+    assert.equal(result.checks[0]!.name, "Copilot");
+    assert.equal(result.checks[0]!.appSlug, "copilot-pull-request-reviewer");
+    assert.equal(result.checks[0]!.status, "queued");
+    assert.equal(result.allCompleted, false);
+  });
+
+  it("does not double-count when a requested bot already has a real check run", async () => {
+    const octokit = makeMockOctokit(
+      [
+        {
+          id: 777,
+          name: "Agent",
+          status: "in_progress",
+          conclusion: null,
+          app: { slug: "github-actions" },
+          details_url: "https://github.com/o/r/actions/runs/555/job/777",
+        },
+      ],
+      [],
+      { 555: { path: "dynamic/copilot-pull-request-reviewer" } },
+      [{ login: "Copilot", id: 175728472 }],
+    );
+
+    const result = await getCheckStatus(octokit as never, "o", "r", 311, "sha1");
+
+    assert.equal(result.checks.length, 1);
+    assert.equal(result.checks[0]!.appSlug, "copilot-pull-request-reviewer");
+    assert.equal(result.checks[0]!.status, "in_progress");
+    assert.equal(result.allCompleted, false);
+  });
+
+  it("ignores unknown logins in requested_reviewers", async () => {
+    const octokit = makeMockOctokit(
+      [],
+      [],
+      {},
+      [
+        { login: "some-human-reviewer", id: 1 },
+        { login: "unknown-bot", id: 2 },
+      ],
+    );
+
+    const result = await getCheckStatus(octokit as never, "o", "r", 311, "sha1");
+
+    assert.equal(result.checks.length, 0);
+    assert.equal(result.allCompleted, true);
+  });
+});
+
+describe("fetchPendingAiReviewRequests", () => {
+  it("returns an empty list when no reviewers are requested", async () => {
+    const octokit = makeMockOctokit([], [], {}, []);
+
+    const result = await fetchPendingAiReviewRequests(octokit as never, "o", "r", 1);
+
+    assert.equal(result.length, 0);
+  });
+
+  it("returns a queued entry for Copilot", async () => {
+    const octokit = makeMockOctokit(
+      [],
+      [],
+      {},
+      [{ login: "Copilot", id: 175728472 }],
+    );
+
+    const result = await fetchPendingAiReviewRequests(octokit as never, "o", "r", 1);
+
+    assert.equal(result.length, 1);
+    assert.equal(result[0]!.name, "Copilot");
+    assert.equal(result[0]!.appSlug, "copilot-pull-request-reviewer");
+    assert.equal(result[0]!.status, "queued");
+    assert.equal(result[0]!.conclusion, null);
+    assert.equal(result[0]!.source, "check_run");
+    // Negative id to avoid collision with real check-run ids.
+    assert.ok(result[0]!.id < 0);
+  });
+
+  it("filters out non-AI-bot logins", async () => {
+    const octokit = makeMockOctokit(
+      [],
+      [],
+      {},
+      [
+        { login: "some-human", id: 1 },
+        { login: "Copilot", id: 175728472 },
+        { login: "another-human", id: 3 },
+      ],
+    );
+
+    const result = await fetchPendingAiReviewRequests(octokit as never, "o", "r", 1);
+
+    assert.equal(result.length, 1);
+    assert.equal(result[0]!.name, "Copilot");
   });
 });
