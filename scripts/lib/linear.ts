@@ -87,6 +87,34 @@ export function parseIssueId(branch: string): string | null {
   return match ? match[0].toUpperCase() : null;
 }
 
+// ---------------------------------------------------------------------------
+// Linear URL parsing
+// ---------------------------------------------------------------------------
+
+const ISSUE_URL_RE =
+  /linear\.app\/[^/]+\/issue\/([A-Z][A-Z0-9_]*-\d+)(?:\/|$|[?#])/i;
+const PROJECT_URL_RE =
+  /linear\.app\/[^/]+\/project\/[^/?#]*-([a-z0-9]{12})(?:\/|$|[?#])/i;
+
+/**
+ * Extract a Linear issue identifier (e.g. "JUMP-304") from a URL like
+ * https://linear.app/<workspace>/issue/JUMP-304/<title-slug>
+ */
+export function parseIssueUrl(input: string): string | null {
+  const m = input.match(ISSUE_URL_RE);
+  return m ? m[1].toUpperCase() : null;
+}
+
+/**
+ * Extract a Linear project slugId (12-char alphanumeric suffix) from a URL
+ * like https://linear.app/<workspace>/project/<kebab-name>-<slugId>[/<tab>].
+ * Verified 2026-04-23: Linear returns the 12-char suffix as `project.slugId`.
+ */
+export function parseProjectUrl(input: string): string | null {
+  const m = input.match(PROJECT_URL_RE);
+  return m ? m[1].toLowerCase() : null;
+}
+
 /**
  * Return the set of file paths changed on the current branch vs the merge base with main.
  */

@@ -1,7 +1,7 @@
 ---
 description: Fetch and interact with Linear issues and projects
 disable-model-invocation: false
-argument-hint: "[--fetch-issue [ID]] [--fetch-project <name>] [free-form request]"
+argument-hint: "[--fetch-issue [ID|URL]] [--fetch-project <name|URL>] [free-form request]"
 ---
 
 ## Linear context

@@ -3,20 +3,29 @@
  * Linear context fetcher for Claude Code skills.
  *
  * Usage:
- *   linear-fetch.ts --fetch-issue JUMP-32     Fetch a specific issue
- *   linear-fetch.ts --fetch-issue             Fetch issue from current branch
- *   linear-fetch.ts --fetch-project <name>    Fetch project overview with issues & docs
- *   linear-fetch.ts <anything else>           Output minimal context (current branch + issue ID)
+ *   linear-fetch.ts --fetch-issue JUMP-32        Fetch a specific issue by identifier
+ *   linear-fetch.ts --fetch-issue <issue URL>    Fetch a specific issue by Linear URL
+ *   linear-fetch.ts --fetch-issue                Fetch issue from current branch
+ *   linear-fetch.ts --fetch-project <name>       Fetch project by name (fuzzy match)
+ *   linear-fetch.ts --fetch-project <URL>        Fetch project by Linear URL (exact slugId match)
+ *   linear-fetch.ts <anything else>              Output minimal context (current branch + issue ID)
  *
  * Requires LINEAR_API_KEY environment variable.
  */
 
-import { getClient, getCurrentBranch, parseIssueId } from "./lib/linear.ts";
+import {
+  getClient,
+  getCurrentBranch,
+  parseIssueId,
+  parseIssueUrl,
+  parseProjectUrl,
+} from "./lib/linear.ts";
 
-async function fetchIssue(identifier: string): Promise<void> {
-  const match = identifier.match(/^([A-Z]+)-(\d+)$/);
+async function fetchIssue(input: string): Promise<void> {
+  const resolvedId = parseIssueUrl(input) ?? input.toUpperCase();
+  const match = resolvedId.match(/^([A-Z]+)-(\d+)$/);
   if (!match) {
-    console.log(`Invalid identifier format: \`${identifier}\``);
+    console.log(`Invalid identifier or URL: \`${input}\``);
     return;
   }
   const [, teamKey, numberStr] = match;
@@ -53,16 +62,23 @@ async function fetchIssue(identifier: string): Promise<void> {
   console.log(issue.description ?? "No description.");
 }
 
-async function fetchProject(name: string): Promise<void> {
+async function fetchProject(input: string): Promise<void> {
+  const slugId = parseProjectUrl(input);
   const client = getClient("read");
   const projects = await client.projects({
-    filter: { name: { containsIgnoreCase: name } },
+    filter: slugId
+      ? { slugId: { eq: slugId } }
+      : { name: { containsIgnoreCase: input } },
     first: 1,
   });
 
   const project = projects.nodes[0];
   if (!project) {
-    console.log(`Project matching '${name}' not found.`);
+    console.log(
+      slugId
+        ? `Project with slug ID '${slugId}' not found.`
+        : `Project matching '${input}' not found.`,
+    );
     return;
   }
 
@@ -98,7 +114,7 @@ async function main(): Promise<void> {
     let issueId: string | null = null;
 
     if (idx + 1 < args.length && !args[idx + 1].startsWith("--")) {
-      issueId = args[idx + 1].toUpperCase();
+      issueId = args[idx + 1];
     } else {
       const branch = getCurrentBranch();
       issueId = branch ? parseIssueId(branch) : null;
@@ -108,7 +124,7 @@ async function main(): Promise<void> {
       await fetchIssue(issueId);
     } else {
       console.error(
-        "No issue ID provided and could not parse from branch."
+        "No issue ID or URL provided and could not parse from branch."
       );
     }
   } else if (args.includes("--fetch-project")) {
@@ -122,7 +138,7 @@ async function main(): Promise<void> {
     if (parts.length > 0) {
       await fetchProject(parts.join(" "));
     } else {
-      console.error("No project name provided.");
+      console.error("No project name or URL provided.");
     }
   } else {
     const hasContent = args.some((a) => a.trim().length > 0);
@@ -136,10 +152,10 @@ async function main(): Promise<void> {
         "| `/linear --fetch-issue` | Fetch the issue parsed from the current git branch |"
       );
       console.log(
-        "| `/linear --fetch-issue JUMP-304` | Fetch a specific issue by identifier |"
+        "| `/linear --fetch-issue <ID\\|URL>` | Fetch a specific issue by identifier (e.g. `JUMP-304`) or Linear URL |"
       );
       console.log(
-        "| `/linear --fetch-project <name>` | Fetch a project overview (state, docs, up to 50 issues) |"
+        "| `/linear --fetch-project <name\\|URL>` | Fetch a project overview (state, docs, up to 50 issues) by name or Linear URL |"
       );
       console.log(
         "| `/linear <free-form request>` | Inject branch/issue context and let Claude assist using the deterministic scripts |"
