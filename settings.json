@@ -133,5 +133,9 @@
   "autoMemoryEnabled": true,
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "theme": "light",
+  "editorMode": "vim",
+  "verbose": true,
+  "autoCompactEnabled": false
 }
