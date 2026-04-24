@@ -3,12 +3,13 @@
  * Linear context fetcher for Claude Code skills.
  *
  * Usage:
+ *   linear-fetch.ts                              Fetch issue from current branch (falls back to usage help)
  *   linear-fetch.ts --fetch-issue JUMP-32        Fetch a specific issue by identifier
  *   linear-fetch.ts --fetch-issue <issue URL>    Fetch a specific issue by Linear URL
  *   linear-fetch.ts --fetch-issue                Fetch issue from current branch
  *   linear-fetch.ts --fetch-project <name>       Fetch project by name (fuzzy match)
  *   linear-fetch.ts --fetch-project <URL>        Fetch project by Linear URL (exact slugId match)
- *   linear-fetch.ts <anything else>              Output minimal context (current branch + issue ID)
+ *   linear-fetch.ts <free-form text>             Output minimal context (current branch + issue ID)
  *
  * Requires LINEAR_API_KEY environment variable.
  */
@@ -144,12 +145,28 @@ async function main(): Promise<void> {
     const hasContent = args.some((a) => a.trim().length > 0);
 
     if (!hasContent) {
-      // No args — print usage help
+      // No args — try to fetch the issue from the current branch.
+      // Fall back to usage help if the branch isn't Linear-derived.
+      const branch = getCurrentBranch();
+      const issueId = branch ? parseIssueId(branch) : null;
+
+      if (issueId) {
+        await fetchIssue(issueId);
+        return;
+      }
+
       console.log("## /linear usage\n");
+      if (branch) {
+        console.log(
+          `_Current branch \`${branch}\` doesn't contain a Linear issue ID (e.g. \`jump-304\`, \`goj-12\`)._\n`,
+        );
+      } else {
+        console.log("_Not in a git repository, or no current branch._\n");
+      }
       console.log("| Command | What it does |");
       console.log("|---|---|");
       console.log(
-        "| `/linear --fetch-issue` | Fetch the issue parsed from the current git branch |"
+        "| `/linear` | Fetch the issue parsed from the current git branch (this help shows when the branch has no Linear ID) |"
       );
       console.log(
         "| `/linear --fetch-issue <ID\\|URL>` | Fetch a specific issue by identifier (e.g. `JUMP-304`) or Linear URL |"

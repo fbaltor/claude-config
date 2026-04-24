@@ -12,7 +12,7 @@ argument-hint: "[--fetch-issue [ID|URL]] [--fetch-project <name|URL>] [free-form
 
 You have Linear context above (if any was fetched).
 
-- **No args** — the script prints a usage table. Show it to the user verbatim as help and stop; do not call any tools.
+- **No args** — the script tries to fetch the issue derived from the current git branch (e.g. `jump-304`, `goj-12`). If it succeeds, present the issue clearly. If the branch has no Linear ID, the script prints a usage table instead — show it verbatim and stop.
 - **`--fetch-issue` / `--fetch-project`** — present the fetched data clearly.
 - **Free-form request** (e.g., "show me JUMP-304", "what's the project status?") — prefer the deterministic scripts over the Linear MCP:
   - Single-issue reads → `npx tsx "$HOME/.claude/scripts/linear-fetch.ts" --fetch-issue <ID>` via Bash
