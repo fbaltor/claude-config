@@ -313,7 +313,14 @@ export async function getCheckStatus(
   );
   const checks = [...realChecks, ...pendingNotYetStarted];
 
-  const allCompleted = checks.length === 0 || checks.every((c) => c.status === "completed");
+  // `requested_reviewers` is the authoritative "this bot still owes a review"
+  // signal. GitHub only removes a bot from the list once it submits a review,
+  // so a non-empty list means at least one bot has work outstanding even if
+  // every check run on the SHA already completed (re-review case).
+  const hasOutstandingReviewers = pendingRequests.length > 0;
+  const allCompleted =
+    checks.length === 0 ||
+    (!hasOutstandingReviewers && checks.every((c) => c.status === "completed"));
 
   return {
     prNumber: pr,

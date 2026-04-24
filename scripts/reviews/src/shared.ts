@@ -127,6 +127,11 @@ export const COPILOT_WORKFLOW_PATH = "dynamic/copilot-pull-request-reviewer";
  * @bot-specific(copilot): The login is `Copilot` (capital C), which is
  * different from the app slug `copilot-pull-request-reviewer` used elsewhere.
  * Verify via `GET /repos/{o}/{r}/pulls/{n}/requested_reviewers` on a live PR.
+ *
+ * If a non-Copilot AI bot's re-review is ever missed by /triage-reviews --wait,
+ * verify the bot's login via `gh api repos/{o}/{r}/pulls/{n}/requested_reviewers`
+ * on a live PR and add it here. The completion gate in getCheckStatus already
+ * handles any login present in this map.
  */
 export const AI_REVIEWER_REQUESTED_LOGINS: Record<
   string,

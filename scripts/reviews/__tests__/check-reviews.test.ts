@@ -942,6 +942,88 @@ describe("getCheckStatus", () => {
     assert.equal(result.checks.length, 0);
     assert.equal(result.allCompleted, true);
   });
+
+  // -------------------------------------------------------------------------
+  // Re-review scenarios — a bot can have completed check runs on the HEAD SHA
+  // while still appearing in `requested_reviewers`, e.g. when its first review
+  // body errored and the user re-requested the review. The pending entry is
+  // the authoritative "still owes a review" signal and must block completion.
+  // -------------------------------------------------------------------------
+
+  it("blocks completion when Copilot is still requested despite two completed Agent runs (PR #313 shape)", async () => {
+    // Two independent Copilot workflow runs on the same SHA, both completed
+    // success — this is the live shape from PR #313 after a re-request.
+    const octokit = makeMockOctokit(
+      [
+        {
+          id: 72803193065,
+          name: "Agent",
+          status: "completed",
+          conclusion: "success",
+          app: { slug: "github-actions" },
+          details_url: "https://github.com/o/r/actions/runs/100/job/200",
+        },
+        {
+          id: 72944877404,
+          name: "Agent",
+          status: "completed",
+          conclusion: "success",
+          app: { slug: "github-actions" },
+          details_url: "https://github.com/o/r/actions/runs/101/job/201",
+        },
+      ],
+      [],
+      {
+        100: { path: "dynamic/copilot-pull-request-reviewer" },
+        101: { path: "dynamic/copilot-pull-request-reviewer" },
+      },
+      [{ login: "Copilot", id: 198982749 }],
+    );
+
+    const result = await getCheckStatus(octokit as never, "o", "r", 313, "dcd60617");
+
+    // Both real check runs are preserved as-is — no status rewriting.
+    assert.equal(result.checks.length, 2);
+    for (const check of result.checks) {
+      assert.equal(check.appSlug, "copilot-pull-request-reviewer");
+      assert.equal(check.status, "completed");
+      assert.equal(check.conclusion, "success");
+    }
+    // The synthetic pending entry is deduped (its appSlug is already present).
+    assert.equal(result.allCompleted, false);
+    assert.equal(result.anyFailed, false);
+  });
+
+  it("preserves a non-success Copilot conclusion when bot is still requested (--rerun guard)", async () => {
+    // Conclusion `cancelled` is not absorbed by normalizeCopilotConclusion
+    // (which only maps `failure` → `neutral`), so it must reach isFailedCheck
+    // intact even when the gate also sees Copilot in requested_reviewers.
+    // This protects --rerun: anyFailed must remain true so the rerun branch
+    // fires for genuine failures, not just for stale check state.
+    const octokit = makeMockOctokit(
+      [
+        {
+          id: 72803193065,
+          name: "Agent",
+          status: "completed",
+          conclusion: "cancelled",
+          app: { slug: "github-actions" },
+          details_url: "https://github.com/o/r/actions/runs/100/job/200",
+        },
+      ],
+      [],
+      { 100: { path: "dynamic/copilot-pull-request-reviewer" } },
+      [{ login: "Copilot", id: 198982749 }],
+    );
+
+    const result = await getCheckStatus(octokit as never, "o", "r", 313, "sha1");
+
+    assert.equal(result.checks.length, 1);
+    assert.equal(result.checks[0]!.appSlug, "copilot-pull-request-reviewer");
+    assert.equal(result.checks[0]!.conclusion, "cancelled");
+    assert.equal(result.anyFailed, true);
+    assert.equal(result.allCompleted, false);
+  });
 });
 
 describe("fetchPendingAiReviewRequests", () => {
