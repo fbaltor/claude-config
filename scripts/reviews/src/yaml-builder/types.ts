@@ -25,6 +25,7 @@ export interface Reviewer {
   id: string;
   display_name: string;
   type: "bot" | "human";
+  status: "reviewed" | "pending";
   config_notes: string | null;
 }
 

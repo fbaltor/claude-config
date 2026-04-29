@@ -9,6 +9,7 @@ import type {
 } from "./types.js";
 import {
   isBot,
+  isReviewBot,
   getAuthorName,
   getAuthorType,
   getThreadAuthor,
@@ -18,6 +19,17 @@ import {
   type PrMeta,
 } from "../shared.js";
 
+/**
+ * A reviewer GitHub still considers outstanding — i.e., still in
+ * `pulls.listRequestedReviewers`. Surfaced separately so the YAML can show
+ * pending reviews (Copilot in particular) even when the bot hasn't posted
+ * any review/thread/comment yet.
+ */
+export interface PendingReviewer {
+  login: string;
+  type: "bot" | "human";
+}
+
 export interface BuildYamlInput {
   pr: number;
   owner: string;
@@ -26,6 +38,7 @@ export interface BuildYamlInput {
   reviews: ReviewNode[];
   threads: ReviewThreadNode[];
   comments: CommentNode[];
+  pendingReviewers?: PendingReviewer[];
 }
 
 // ---------------------------------------------------------------------------
@@ -85,6 +98,7 @@ function buildComment(
 
 export function buildYamlOutput(input: BuildYamlInput): string {
   const { pr, owner, repo, prMeta, reviews, threads, comments } = input;
+  const pendingReviewers = input.pendingReviewers ?? [];
 
   // 1. Build PR metadata
   const prMetadata = {
@@ -98,20 +112,37 @@ export function buildYamlOutput(input: BuildYamlInput): string {
     files_changed: prMeta.changedFiles,
   };
 
-  // 2. Build reviewers list (human + bot)
+  // 2. Build reviewers list.
+  //
+  // A "reviewer" is anyone who has actually reviewed (a review submission, an
+  // inline thread, or — for humans only — a general PR comment) plus anyone
+  // GitHub still considers an outstanding reviewer (pendingReviewers, sourced
+  // from pulls.listRequestedReviewers in the CLI).
+  //
+  // General-comment-only bots (linear[bot] link-backs, vercel[bot] deploy
+  // status, etc.) are deliberately filtered: they leave PR comments but are
+  // not code reviewers, and listing them as reviewers misleads the triage
+  // skill about who is actually reviewing the PR.
   const reviewerSet = new Map<string, "bot" | "human">();
   for (const r of reviews) {
-    const name = getAuthorName(r.author);
-    reviewerSet.set(name, getAuthorType(r.author));
+    reviewerSet.set(getAuthorName(r.author), getAuthorType(r.author));
   }
   for (const t of threads) {
     const firstAuthor = t.comments.nodes[0]?.author ?? null;
-    const name = getAuthorName(firstAuthor);
-    reviewerSet.set(name, getAuthorType(firstAuthor));
+    reviewerSet.set(getAuthorName(firstAuthor), getAuthorType(firstAuthor));
   }
   for (const c of comments) {
-    const name = getAuthorName(c.author);
-    reviewerSet.set(name, getAuthorType(c.author));
+    if (isBot(c.author) && !isReviewBot(c.author)) continue;
+    reviewerSet.set(getAuthorName(c.author), getAuthorType(c.author));
+  }
+
+  const pendingSet = new Set<string>();
+  for (const p of pendingReviewers) {
+    const name = p.login.replace("[bot]", "");
+    if (!reviewerSet.has(name)) {
+      reviewerSet.set(name, p.type);
+    }
+    pendingSet.add(name);
   }
 
   const reviewers: Reviewer[] = [];
@@ -132,6 +163,7 @@ export function buildYamlOutput(input: BuildYamlInput): string {
       id: reviewerName,
       display_name: reviewerName,
       type: reviewerType,
+      status: pendingSet.has(reviewerName) ? "pending" : "reviewed",
       config_notes: configNotes,
     });
   }
@@ -203,8 +235,11 @@ export function buildYamlOutput(input: BuildYamlInput): string {
     );
   }
 
-  // 3c. General PR comments
+  // 3c. General PR comments — skip non-review bots (linear/vercel/etc.) so
+  // their link-back / deploy-status posts don't end up classified as
+  // "general" review comments.
   for (const comment of comments) {
+    if (isBot(comment.author) && !isReviewBot(comment.author)) continue;
     const reviewerName = getAuthorName(comment.author);
     yamlComments.push(
       buildComment(comment.id, reviewerName, "general", comment.body, null, null, null, false),

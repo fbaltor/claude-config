@@ -17,8 +17,9 @@ import { Octokit } from "@octokit/rest";
 import { getGitHubToken, parseCommonArgs } from "../cli-utils.js";
 import { waitForCompletion } from "../check-reviews.js";
 import { buildCiFailureYaml } from "../ci-checks.js";
-import { buildYamlOutput } from "../yaml-builder/index.js";
+import { buildYamlOutput, type PendingReviewer } from "../yaml-builder/index.js";
 import {
+  AI_REVIEWER_REQUESTED_LOGINS,
   getAuthorName,
   getAuthorType,
   type ReviewThreadNode,
@@ -116,6 +117,36 @@ async function parseArgs(): Promise<CliArgs> {
 }
 
 // ---------------------------------------------------------------------------
+// Pending reviewers
+// ---------------------------------------------------------------------------
+
+/**
+ * Reviewers GitHub still considers outstanding (in `requested_reviewers`).
+ * Bots are filtered to known AI review apps so noise bots don't sneak back in
+ * via the requested-reviewers list either; humans are passed through as-is.
+ */
+async function fetchPendingReviewers(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  pr: number,
+): Promise<PendingReviewer[]> {
+  const { data } = await octokit.pulls.listRequestedReviewers({
+    owner,
+    repo,
+    pull_number: pr,
+  });
+
+  const out: PendingReviewer[] = [];
+  for (const user of data.users ?? []) {
+    const isBotUser = user.type === "Bot";
+    if (isBotUser && !AI_REVIEWER_REQUESTED_LOGINS[user.login]) continue;
+    out.push({ login: user.login, type: isBotUser ? "bot" : "human" });
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -123,11 +154,11 @@ async function main(): Promise<void> {
   const { pr, owner, repo, wait, rerun, filter, formats } = await parseArgs();
 
   const token = getGitHubToken();
+  const octokit = new Octokit({ auth: token });
 
   // If --wait, delegate to status checker first
   if (wait) {
     console.log(`Checking AI review status for PR #${pr}...`);
-    const octokit = new Octokit({ auth: token });
     const result = await waitForCompletion(octokit, owner, repo, pr, { rerun, checkCi: true });
 
     // CI failure detected — write failure report and abort
@@ -167,12 +198,17 @@ async function main(): Promise<void> {
     headers: { authorization: `token ${token}` },
   });
 
-  const [{ prMeta, reviews: allReviews }, allThreads, allComments] =
-    await Promise.all([
-      fetchAllReviews(gql, owner, repo, pr),
-      fetchAllReviewThreads(gql, owner, repo, pr),
-      fetchAllComments(gql, owner, repo, pr),
-    ]);
+  const [
+    { prMeta, reviews: allReviews },
+    allThreads,
+    allComments,
+    pendingReviewers,
+  ] = await Promise.all([
+    fetchAllReviews(gql, owner, repo, pr),
+    fetchAllReviewThreads(gql, owner, repo, pr),
+    fetchAllComments(gql, owner, repo, pr),
+    fetchPendingReviewers(octokit, owner, repo, pr),
+  ]);
 
   checkNestedTruncation(allThreads);
 
@@ -327,6 +363,7 @@ async function main(): Promise<void> {
   if (formats.has("yaml")) {
     const yamlContent = buildYamlOutput({
       pr, owner, repo, prMeta, reviews, threads: filteredThreads, comments: prComments,
+      pendingReviewers,
     });
     const yamlPath = join(outDir, `pr-${pr}-reviews-${timestamp}.yaml`);
     writeFileSync(yamlPath, yamlContent, "utf-8");
