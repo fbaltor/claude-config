@@ -34,7 +34,7 @@
       "Bash(git checkout .)",
       "Bash(git checkout --)"
     ],
-    "defaultMode": "auto"
+    "defaultMode": "default"
   },
   "hooks": {
     "PreToolUse": [
@@ -72,8 +72,7 @@
     "command": "/home/fbaltor/.claude/statusline.sh"
   },
   "enabledPlugins": {
-    "code-simplifier@claude-plugins-official": true,
-    "vercel@claude-plugins-official": true
+    "code-simplifier@claude-plugins-official": true
   },
   "sandbox": {
     "enabled": false
@@ -83,9 +82,9 @@
   "autoMemoryEnabled": true,
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
-  "skipAutoPermissionPrompt": true,
   "theme": "light",
   "editorMode": "vim",
   "verbose": true,
-  "autoCompactEnabled": false
+  "autoCompactEnabled": false,
+  "skipAutoPermissionPrompt": true
 }
