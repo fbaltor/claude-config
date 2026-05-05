@@ -16,7 +16,8 @@
       "Write(//tmp/**)",
       "WebSearch",
       "WebFetch",
-      "Bash(*)"
+      "Bash(*)",
+      "mcp__claude_ai_Linear"
     ],
     "deny": [
       "Bash(sudo *)",
