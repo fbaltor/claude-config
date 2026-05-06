@@ -17,7 +17,13 @@
       "WebSearch",
       "WebFetch",
       "Bash(*)",
-      "mcp__claude_ai_Linear"
+      "mcp__claude_ai_Linear",
+      "mcp__claude_ai_Notion",
+      "mcp__claude_ai_Gmail",
+      "mcp__claude_ai_Google_Calendar",
+      "mcp__claude_ai_Google_Drive",
+      "mcp__claude_ai_Slack",
+      "mcp__claude_ai_Vercel"
     ],
     "deny": [
       "Bash(sudo *)",
@@ -33,7 +39,13 @@
       "Bash(git reset *--hard*)",
       "Bash(git clean -fd*)",
       "Bash(git checkout .)",
-      "Bash(git checkout --)"
+      "Bash(git checkout --)",
+      "mcp__claude_ai_Linear__delete_attachment",
+      "mcp__claude_ai_Linear__delete_comment",
+      "mcp__claude_ai_Linear__delete_status_update",
+      "mcp__claude_ai_Slack__slack_send_message",
+      "mcp__claude_ai_Slack__slack_schedule_message",
+      "mcp__claude_ai_Vercel__deploy_to_vercel"
     ],
     "defaultMode": "default"
   },
