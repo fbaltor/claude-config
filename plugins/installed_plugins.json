@@ -11,6 +11,16 @@
         "lastUpdated": "2026-02-26T02:48:45.508Z",
         "gitCommitSha": "55b58ec6e5649104f926ba7558b567dc8d33c5ff"
       }
+    ],
+    "caveman@caveman": [
+      {
+        "scope": "user",
+        "installPath": "/home/fbaltor/.claude/plugins/cache/caveman/caveman/754795ada42d",
+        "version": "754795ada42d",
+        "installedAt": "2026-05-11T18:08:29.868Z",
+        "lastUpdated": "2026-05-11T18:08:29.868Z",
+        "gitCommitSha": "754795ada42dea54adf061d42a61e560caa4f9ce"
+      }
     ]
   }
 }

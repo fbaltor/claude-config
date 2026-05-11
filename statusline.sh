@@ -17,4 +17,13 @@ else
 fi
 RESET="\033[0m"
 
-echo -e "${PCT_COLOR}${PCT}%${RESET} context | ${COST_FMT} | ${MODEL}"
+CAVE_PART=""
+caveman_flag="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/.caveman-active"
+if [ -f "$caveman_flag" ]; then
+  cave_mode=$(cat "$caveman_flag" 2>/dev/null)
+  if [ -n "$cave_mode" ]; then
+    CAVE_PART=" | caveman:${cave_mode}"
+  fi
+fi
+
+echo -e "${PCT_COLOR}${PCT}%${RESET} context | ${COST_FMT} | ${MODEL}${CAVE_PART}"
