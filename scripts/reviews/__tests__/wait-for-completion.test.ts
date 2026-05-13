@@ -90,11 +90,14 @@ function makePollOctokit(sequence: MockCheckRun[][], options: MockOptions | stri
     return { data: wf };
   });
 
+  const listAnnotations = mock.fn(async () => ({ data: [] }));
+
   return {
     pulls: { get: pullsGet, listRequestedReviewers },
     checks: {
       listForRef,
       rerequestRun: mock.fn(async () => ({})),
+      listAnnotations,
     },
     repos: {
       listCommitStatusesForRef,
@@ -261,5 +264,67 @@ describe("waitForCompletion", () => {
       octokit.pulls.listRequestedReviewers.mock.calls.length >= 2,
       `expected listRequestedReviewers to be called at least twice, got ${octokit.pulls.listRequestedReviewers.mock.calls.length}`,
     );
+  });
+
+  it("aborts with ciFailures when checkCi defaults to true and a non-AI CI check has failed", async () => {
+    const completedAi: MockCheckRun = {
+      id: 1,
+      name: "CodeRabbit",
+      status: "completed",
+      conclusion: "success",
+      app: { slug: "coderabbitai" },
+      details_url: null,
+    };
+    const failedCi: MockCheckRun = {
+      id: 999,
+      name: "Lint, Type-check & Build",
+      status: "completed",
+      conclusion: "failure",
+      app: { slug: "buildkite" },
+      details_url: null,
+    };
+
+    const octokit = makePollOctokit([[completedAi, failedCi]]);
+
+    const result = await waitForCompletion(octokit as never, "o", "r", 1, {
+      pollIntervalMs: 10,
+      timeoutMs: 100,
+      renderer: createNoopRenderer(),
+    });
+
+    assert.ok(result.ciFailures && result.ciFailures.length === 1);
+    assert.equal(result.ciFailures[0]!.job_name, "Lint, Type-check & Build");
+  });
+
+  it("ignores failed CI checks when checkCi is false (skip-ci flag path)", async () => {
+    const completedAi: MockCheckRun = {
+      id: 1,
+      name: "CodeRabbit",
+      status: "completed",
+      conclusion: "success",
+      app: { slug: "coderabbitai" },
+      details_url: null,
+    };
+    const failedCi: MockCheckRun = {
+      id: 999,
+      name: "Lint, Type-check & Build",
+      status: "completed",
+      conclusion: "failure",
+      app: { slug: "buildkite" },
+      details_url: null,
+    };
+
+    const octokit = makePollOctokit([[completedAi, failedCi]]);
+
+    const result = await waitForCompletion(octokit as never, "o", "r", 1, {
+      pollIntervalMs: 10,
+      timeoutMs: 100,
+      renderer: createNoopRenderer(),
+      checkCi: false,
+    });
+
+    assert.equal(result.ciFailures, undefined);
+    assert.equal(result.allCompleted, true);
+    assert.equal(result.anyFailed, false);
   });
 });

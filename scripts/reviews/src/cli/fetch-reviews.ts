@@ -49,6 +49,7 @@ interface CliArgs {
   repo: string;
   wait: boolean;
   rerun: boolean;
+  skipCi: boolean;
   filter: ReviewFilter;
   formats: Set<OutputFormat>;
 }
@@ -68,6 +69,7 @@ Options:
   --human            Only include human reviewers
   --wait             Wait for AI review checks to complete before fetching
   --rerun            Re-trigger failed review checks (use with --wait)
+  --skip-ci          Skip CI failure detection during --wait (proceed even if CI is red)
   --format <list>    Comma-separated output formats: yaml,md,by-reviewer,json (default: yaml)
   --format all       Enable all output formats
   --help             Show this help message
@@ -111,6 +113,7 @@ async function parseArgs(): Promise<CliArgs> {
     ...common,
     wait: args.includes("--wait"),
     rerun: args.includes("--rerun"),
+    skipCi: args.includes("--skip-ci"),
     filter,
     formats,
   };
@@ -151,7 +154,7 @@ async function fetchPendingReviewers(
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  const { pr, owner, repo, wait, rerun, filter, formats } = await parseArgs();
+  const { pr, owner, repo, wait, rerun, skipCi, filter, formats } = await parseArgs();
 
   const token = getGitHubToken();
   const octokit = new Octokit({ auth: token });
@@ -159,7 +162,8 @@ async function main(): Promise<void> {
   // If --wait, delegate to status checker first
   if (wait) {
     console.log(`Checking AI review status for PR #${pr}...`);
-    const result = await waitForCompletion(octokit, owner, repo, pr, { rerun, checkCi: true });
+    if (skipCi) console.log("--skip-ci: CI failure detection disabled.");
+    const result = await waitForCompletion(octokit, owner, repo, pr, { rerun, checkCi: !skipCi });
 
     // CI failure detected — write failure report and abort
     if (result.ciFailures && result.ciFailures.length > 0) {

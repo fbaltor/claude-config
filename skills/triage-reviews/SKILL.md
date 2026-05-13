@@ -1,7 +1,7 @@
 ---
 description: Fetch all PR review comments (human + bot), analyze them against the source code, and classify as false positive / minor / major
 model: opus
-argument-hint: "[--wait] [--pr <number>] [--repo owner/repo]"
+argument-hint: "[--wait] [--skip-ci] [--pr <number>] [--repo owner/repo]"
 allowed-tools: [Read, Bash, Grep, Glob]
 ---
 
@@ -24,6 +24,7 @@ Parse `$ARGUMENTS` for:
 - `--pr <number>` — PR number (if omitted, the script auto-detects from current branch)
 - `--repo owner/repo` — target repository (default: `Jumpstart-Immigration/jumpstart`)
 - `--wait` — wait for bot reviews to complete before fetching
+- `--skip-ci` — skip CI failure detection during `--wait` (use when CI is broken on an unrelated step and you still want to fetch reviews)
 
 ## Step 2 — Fetch review data
 
@@ -39,6 +40,12 @@ Run the fetch command with `--wait` using the Bash tool with `run_in_background:
 
 ```bash
 npm --prefix ~/.claude/scripts/reviews run fetch-reviews -- --wait --pr PR --repo OWNER/REPO
+```
+
+If the user passes `--skip-ci` (or asks to bypass an unrelated CI failure), append it:
+
+```bash
+npm --prefix ~/.claude/scripts/reviews run fetch-reviews -- --wait --skip-ci --pr PR --repo OWNER/REPO
 ```
 
 Tell the user: "Waiting for bot reviews to complete. I'll proceed with triage when ready."
