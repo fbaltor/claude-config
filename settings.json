@@ -6,48 +6,13 @@
     "MAX_THINKING_TOKENS": "63999"
   },
   "permissions": {
-    "allow": [
-      "Read(//home/fbaltor/.claude/**)",
-      "Edit(//home/fbaltor/.claude/**)",
-      "Read(./**)",
-      "Edit(./**)",
-      "Read(//tmp/**)",
-      "Edit(//tmp/**)",
-      "Write(//tmp/**)",
-      "WebSearch",
-      "WebFetch",
-      "Bash(*)",
-      "mcp__claude_ai_Linear",
-      "mcp__claude_ai_Notion",
-      "mcp__claude_ai_Gmail",
-      "mcp__claude_ai_Google_Calendar",
-      "mcp__claude_ai_Google_Drive",
-      "mcp__claude_ai_Slack",
-      "mcp__claude_ai_Vercel"
-    ],
+    "defaultMode": "bypassPermissions",
     "deny": [
       "Bash(sudo *)",
       "Bash(su *)",
       "Bash(chmod -R 777 *)",
       "Bash(chown *)"
-    ],
-    "ask": [
-      "Bash(rm -rf *)",
-      "Bash(* rm -rf *)",
-      "Bash(git push *--force*)",
-      "Bash(git push *-f *)",
-      "Bash(git reset *--hard*)",
-      "Bash(git clean -fd*)",
-      "Bash(git checkout .)",
-      "Bash(git checkout --)",
-      "mcp__claude_ai_Linear__delete_attachment",
-      "mcp__claude_ai_Linear__delete_comment",
-      "mcp__claude_ai_Linear__delete_status_update",
-      "mcp__claude_ai_Slack__slack_send_message",
-      "mcp__claude_ai_Slack__slack_schedule_message",
-      "mcp__claude_ai_Vercel__deploy_to_vercel"
-    ],
-    "defaultMode": "default"
+    ]
   },
   "hooks": {
     "PreToolUse": [
