@@ -108,9 +108,9 @@ export async function parseCommonArgs(args: string[]): Promise<CommonCliArgs> {
     return { pr: n, owner, repo };
   }
 
-  // npm run rewrites cwd to the package dir but preserves the caller's cwd
+  // pnpm run rewrites cwd to the package dir but preserves the caller's cwd
   // in INIT_CWD — use it so branch detection works when invoked via
-  // `npm --prefix ... run`.
+  // `pnpm --dir ... run`.
   const callerCwd = process.env["INIT_CWD"] ?? process.cwd();
   const branch = readCurrentBranch(callerCwd);
   if (!branch) {

@@ -17,7 +17,7 @@
     "resolve-threads": "tsx src/cli/resolve-threads.ts",
     "test": "node --import tsx --experimental-test-module-mocks --test __tests__/*.test.ts",
     "build": "tsc",
-    "prepublishOnly": "npm run build && cp -r src/queries dist/queries"
+    "prepublishOnly": "pnpm run build && cp -r src/queries dist/queries"
   },
   "dependencies": {
     "@octokit/graphql": "^9.0.3",

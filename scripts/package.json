@@ -11,10 +11,10 @@
     "tsx": "^4.21.0"
   },
   "scripts": {
-    "fetch-reviews": "npm --prefix reviews run fetch-reviews --",
-    "check-reviews": "npm --prefix reviews run check-reviews --",
+    "fetch-reviews": "pnpm --dir reviews run fetch-reviews --",
+    "check-reviews": "pnpm --dir reviews run check-reviews --",
     "test": "node --import tsx --test __tests__/*.test.ts",
-    "test:reviews": "npm --prefix reviews test",
-    "test:meta-workflow": "npm --prefix meta-workflow test"
+    "test:reviews": "pnpm --dir reviews test",
+    "test:meta-workflow": "pnpm --dir meta-workflow test"
   }
 }

@@ -8,8 +8,8 @@ This directory has its own `package.json` and `node_modules/`. Sub-packages (lik
 
 ```bash
 cd ~/.claude/scripts
-npm install
-cd reviews && npm install
+pnpm install
+cd reviews && pnpm install
 ```
 
 ## Dependency management
@@ -18,18 +18,18 @@ Scripts here import npm packages (e.g. `@linear/sdk`). Dependencies are declared
 
 **Do NOT install these dependencies in project repos.** The skill invocations use absolute paths (`$HOME/.claude/scripts/...`), so Node resolution finds `~/.claude/scripts/node_modules/` regardless of the project's working directory.
 
-Sub-packages (like `reviews/`) have their own `package.json` and `node_modules/`. The parent `package.json` delegates to them via `npm --prefix`.
+Sub-packages (like `reviews/`) have their own `package.json` and `node_modules/`. The parent `package.json` delegates to them via `pnpm --dir`.
 
 To add a new dependency:
 
 ```bash
 # Root-level scripts (e.g. linear-fetch.ts)
 cd ~/.claude/scripts
-npm install <package>
+pnpm add <package>
 
 # Sub-packages (e.g. reviews/)
 cd ~/.claude/scripts/reviews
-npm install <package>
+pnpm add <package>
 ```
 
 ## Sub-packages
@@ -42,7 +42,7 @@ Self-contained package for fetching and analyzing PR review comments from GitHub
 
 ```bash
 cd ~/.claude/scripts/reviews
-npm install
+pnpm install
 ```
 
 **Structure:**
@@ -65,17 +65,17 @@ npm install
 
 ```bash
 cd ~/.claude/scripts/reviews
-npm run fetch-reviews -- --pr 39
-npm run check-reviews -- --pr 39 --wait
-npm test
+pnpm run fetch-reviews -- --pr 39
+pnpm run check-reviews -- --pr 39 --wait
+pnpm test
 ```
 
 **Usage (from parent):**
 
 ```bash
 cd ~/.claude/scripts
-npm run fetch-reviews -- --pr 39
-npm run test:reviews
+pnpm run fetch-reviews -- --pr 39
+pnpm run test:reviews
 ```
 
 **Invoked by:** `.claude/skills/triage-reviews/SKILL.md` in any project repo, via:
