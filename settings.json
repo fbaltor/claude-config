@@ -10,11 +10,6 @@
     "allow": [
       "Bash(sudo nixos-rebuild *)"
     ],
-    "deny": [
-      "Bash(su *)",
-      "Bash(chmod -R 777 *)",
-      "Bash(chown *)"
-    ],
     "defaultMode": "bypassPermissions"
   },
   "model": "claude-opus-4-8[1m]",
