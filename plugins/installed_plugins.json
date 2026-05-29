@@ -15,12 +15,22 @@
     "caveman@caveman": [
       {
         "scope": "project",
+        "projectPath": "/home/fbaltor",
         "installPath": "/home/fbaltor/.claude/plugins/cache/caveman/caveman/655b7d9c5431",
         "version": "655b7d9c5431",
         "installedAt": "2026-05-28T21:02:52.319Z",
         "lastUpdated": "2026-05-28T21:02:52.319Z",
-        "gitCommitSha": "655b7d9c5431f822264b7732e9901c5578ac84cf",
-        "projectPath": "/home/fbaltor"
+        "gitCommitSha": "655b7d9c5431f822264b7732e9901c5578ac84cf"
+      }
+    ],
+    "lua-lsp@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "/home/fbaltor/.claude/plugins/cache/claude-plugins-official/lua-lsp/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-05-29T15:34:07.571Z",
+        "lastUpdated": "2026-05-29T15:34:07.571Z",
+        "gitCommitSha": "515f7b8fb0d5299da62d649b1db35dce4331e1a4"
       }
     ]
   }
