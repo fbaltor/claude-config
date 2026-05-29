@@ -6,14 +6,17 @@
     "MAX_THINKING_TOKENS": "63999"
   },
   "permissions": {
-    "defaultMode": "bypassPermissions",
+    "allow": [
+      "Bash(sudo nixos-rebuild *)"
+    ],
     "deny": [
-      "Bash(sudo *)",
       "Bash(su *)",
       "Bash(chmod -R 777 *)",
       "Bash(chown *)"
-    ]
+    ],
+    "defaultMode": "bypassPermissions"
   },
+  "model": "claude-opus-4-8",
   "hooks": {
     "PreToolUse": [
       {
@@ -49,7 +52,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"/home/fbaltor/.local/share/fnm/node-versions/v24.11.1/installation/bin/node\" \"/home/fbaltor/.claude/hooks/caveman-activate.js\"",
+            "command": "node \"/home/fbaltor/.claude/hooks/caveman-activate.js\"",
             "timeout": 5,
             "statusMessage": "Loading caveman mode..."
           }
@@ -61,7 +64,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"/home/fbaltor/.local/share/fnm/node-versions/v24.11.1/installation/bin/node\" \"/home/fbaltor/.claude/hooks/caveman-mode-tracker.js\"",
+            "command": "node \"/home/fbaltor/.claude/hooks/caveman-mode-tracker.js\"",
             "timeout": 5,
             "statusMessage": "Tracking caveman mode..."
           }

@@ -1,5 +1,11 @@
 # Global Rules
 
+## Environment
+
+This machine runs **NixOS**: `/bin/bash` does not exist (only `/bin/sh`). Any script with shebang `#!/bin/bash` fails with `bad interpreter: No such file or directory` when exec'd directly — by Claude Code (statusLine, hooks), the kernel, or another process. It only appears to work when run as `bash script.sh`, which bypasses the shebang.
+
+**Always use `#!/usr/bin/env bash` (never `#!/bin/bash`)** for shell scripts here. This silently broke the statusLine until the shebang was fixed.
+
 ## Hooks
 
 Hooks are configured in `/home/fbaltor/.claude/settings.json` under the `hooks` key. Shared types and `readHookStdin()` live in `/home/fbaltor/.claude/scripts/lib/hooks.ts`. All hooks are TypeScript, run via `npx tsx`.
@@ -55,9 +61,9 @@ When a task involves multiple discrete deliverables (e.g., audit → plan → is
 ## File Organization
 
 - Save implementation plans to `/home/fbaltor/.claude/plans/`.
-- Save research/investigation documents to `/home/fbaltor/.claude/research/` — but **only when explicitly asked** to create a persistent artifact. By default, present findings inline in the conversation. Don't auto-generate research files.
+- Save research/investigation documents to the project's `docs/` directory when working inside a project repo. Use `/home/fbaltor/.claude/research/` only for cross-project or non-repo investigations.
 - Use descriptive filenames with date prefixes: `YYYY-MM-DD-description.md` (e.g., `2026-03-18-lily-joo-save-error-investigation.md`).
-- Never save plans or research inside the project repo (e.g., `.claude/` within the repo). Always use the global `/home/fbaltor/.claude/` directories.
+- Never save plans or research under `.claude/` within the project repo. Plans go to `/home/fbaltor/.claude/plans/`; investigation docs go to `docs/` in the repo.
 
 ## Project Rule Overrides
 
@@ -75,7 +81,7 @@ These personal preferences override conflicting rules in any project-level `AGEN
 ## Pull Requests
 
 - Always create PRs as **draft** and assign the author (`gh pr create --draft --assignee @me`).
-- For PR review operations (fetching, triaging, resolving threads), always use the review scripts via `npm --prefix /home/fbaltor/.claude/scripts/reviews run <script> -- <args>`. Never write raw `gh api graphql` queries for review thread operations. Available scripts: `fetch-reviews`, `check-reviews`, `resolve-threads`.
+- For PR review operations (fetching, triaging, resolving threads), always use the review scripts via `pnpm --dir /home/fbaltor/.claude/scripts/reviews run <script> -- <args>`. Never write raw `gh api graphql` queries for review thread operations. Available scripts: `fetch-reviews`, `check-reviews`, `resolve-threads`.
 - Review triage uses `<reviewer>/<severity>-<n>` IDs (e.g., `cp/med-1`, `cr/high-2`). Reviewers: `cp` (Copilot), `cr` (CodeRabbit), `va` (Vercel Agent), human = first 2-3 letters. Severity: `crit`, `high`, `med`, `min`, `fp`. Format is codified in `/home/fbaltor/.claude/skills/triage-reviews/SKILL.md`.
 - Only run `resolve-threads` (including `--list`) after effectively addressing or dismissing a specific comment — never as a speculative scan or sanity check. Skip it entirely for comments that don't have an inline thread (review-summary body nitpicks, PR-level comments): there is nothing to resolve, and probing produces noise.
 
