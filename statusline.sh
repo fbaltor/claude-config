@@ -53,5 +53,40 @@ if [ -n "$EFFORT" ]; then
   EFFORT_PART=" | effort:${EFFORT}"
 fi
 
-# Format: user:cwd (branch) | context% | model [effort] [caveman]
-printf "${GREEN}$(whoami)${RESET}:${BLUE}${CWD}${GOLD}${GIT_BRANCH}${RESET} | ${PCT_COLOR}${PCT}%%${RESET} ctx | ${MODEL}${EFFORT_PART}${CAVE_PART}"
+# --- Claude Code version: current (from stdin) + latest (cached, bg-refreshed) ---
+# The hot path must never block on the network. We read a cached "latest" and,
+# only if the cache is older than TTL, kick a detached refresh and use whatever
+# is cached this render. mtime is bumped up-front to debounce concurrent renders.
+CUR=$(echo "$input" | jq -r '.version // empty')
+
+VER_CACHE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/.cc-latest-version"
+VER_TTL=21600  # 6h
+now=$(date +%s)
+if [ -f "$VER_CACHE" ]; then
+  LATEST=$(cat "$VER_CACHE" 2>/dev/null)
+  vmtime=$(stat -c %Y "$VER_CACHE" 2>/dev/null || echo 0)
+else
+  LATEST=""; vmtime=0
+fi
+if [ $((now - vmtime)) -gt "$VER_TTL" ]; then
+  touch "$VER_CACHE" 2>/dev/null   # debounce before launching the refresh
+  (
+    v=$(curl -fsS --max-time 4 \
+          https://registry.npmjs.org/@anthropic-ai/claude-code/latest 2>/dev/null \
+        | jq -r '.version // empty' 2>/dev/null)
+    [ -n "$v" ] && printf '%s' "$v" > "$VER_CACHE"
+  ) </dev/null >/dev/null 2>&1 &
+fi
+
+CC_PART=""
+if [ -n "$CUR" ]; then
+  if [ -n "$LATEST" ] && [ "$LATEST" != "$CUR" ] \
+     && [ "$(printf '%s\n%s\n' "$CUR" "$LATEST" | sort -V | tail -n1)" = "$LATEST" ]; then
+    CC_PART=" | ${GOLD}cc ${CUR}→${LATEST}${RESET}"   # update available
+  else
+    CC_PART=" | cc ${CUR} ${GREEN}✓${RESET}"          # on latest (or latest unknown)
+  fi
+fi
+
+# Format: user:cwd (branch) | context% | model [effort] [caveman] [cc-version]
+printf "${GREEN}$(whoami)${RESET}:${BLUE}${CWD}${GOLD}${GIT_BRANCH}${RESET} | ${PCT_COLOR}${PCT}%%${RESET} ctx | ${MODEL}${EFFORT_PART}${CAVE_PART}${CC_PART}"
