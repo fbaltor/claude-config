@@ -1,9 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "env": {
-    "CLAUDE_CODE_EFFORT_LEVEL": "max",
-    "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
-    "MAX_THINKING_TOKENS": "63999",
+    "CLAUDE_CODE_EFFORT_LEVEL": "xhigh",
     "CAVEMAN_DEFAULT_MODE": "lite"
   },
   "permissions": {
@@ -14,35 +12,6 @@
   },
   "model": "claude-opus-4-8[1m]",
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "npx tsx /home/fbaltor/.claude/hooks/pre-pr-check-doc-sync.ts",
-            "timeout": 30
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "npx tsx /home/fbaltor/.claude/hooks/post-pr-update-linear-status.ts",
-            "timeout": 15
-          },
-          {
-            "type": "command",
-            "command": "npx tsx /home/fbaltor/.claude/hooks/post-checkout-update-linear-status.ts",
-            "timeout": 15
-          }
-        ]
-      }
-    ],
     "SessionStart": [
       {
         "hooks": [
@@ -97,5 +66,6 @@
   "editorMode": "vim",
   "verbose": true,
   "autoCompactEnabled": false,
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "autoUpdatesChannel": "latest"
 }
