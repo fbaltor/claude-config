@@ -1,0 +1,13 @@
+{
+  "name": "offscreen-capture",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Capture a GUI app fully off-screen via a headless compositor we own (sway), on GNOME/Wayland NixOS. Nothing touches the visible desktop.",
+  "bin": {
+    "offscreen-capture": "./cli.ts"
+  },
+  "scripts": {
+    "test": "npx tsx test/index.ts"
+  }
+}
