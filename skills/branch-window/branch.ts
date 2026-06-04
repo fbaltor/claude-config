@@ -17,6 +17,11 @@
 //   --split     h (side-by-side) or v (stacked); pane backends only
 //
 // Requires CLAUDE_CODE_SESSION_ID in the environment (always set inside CC).
+// Claude Code overrides it with the live session's id even inside a fork that
+// inherited a stale value, so it is reliable here — the old "branch-of-a-branch
+// forks the grandparent" bug was a 2.1.158 artifact, fixed by 2.1.16x. (For a
+// deterministic hedge against a future regression, fall back to the per-pid
+// session registry ~/.claude/sessions/<claude-pid>.json — never to mtime.)
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
