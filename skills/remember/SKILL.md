@@ -33,7 +33,9 @@ If an existing note covers it → **update** it (`Edit`/`iwe update`). Otherwise
 - **One physical line per paragraph and bullet** — never hard-wrap (`normalize` joins soft-wrapped lines).
 - First `#` heading is the note's **title**; one concept per note; kebab-case keys.
 - Cross-refs are **iwe-native** `[Title](key)` — root-relative key, **no `.md`**, and the **link label must equal the target note's H1 title** (otherwise `normalize` rewrites it or it silently dangles).
-- Optionally end with a provenance line (e.g. *"Distilled from … / source of truth: `~/path`"*).
+- **Ingest vs reference (the core model — see `~/memory-iwe/conventions.md`):** settled pure-knowledge → write the **full content** (decompose if >~500 words into leaves under an overview note); **live workspaces & code projects** → a **reference-only summary + pointer**, the repo stays canonical (don't mirror).
+- **External resources = `gf`-jumpable absolute paths in inline code** (e.g. `` `/home/fbaltor/quant/STATUS.md` ``). Never markdown-link a local file — `normalize` mangles it (collapses `file://`, strips `.md`, treats bare paths as note-keys). Only web URLs may be markdown links.
+- **End with provenance:** ingested → *"Ingested in full from `/abs/path` (settled; wiki canonical)"*; reference-only → *"Canonical source (jump with `gf`): `/abs/path` — summary; edit the source."*
 
 ## 5. Normalize + verify
 ```bash
@@ -44,7 +46,7 @@ iwe normalize && git diff --quiet && echo "normalize idempotent OK"   # 2nd pass
 grep -rhoE '\]\([a-z0-9][a-z0-9/_-]*\)' --include='*.md' . | sed -E 's/^\]\(//;s/\)$//' | sort -u \
   | while read -r k; do [ -f "$k.md" ] || echo "DANGLING: $k"; done
 # reachability — no orphans: reachable keys should equal note files:
-echo "reachable=$(iwe tree -f keys -d 12 | sort -u | grep -c .)  files=$(git ls-files '*.md' | grep -vE 'pages/|journals/' | wc -l)"
+echo "reachable=$(iwe tree -f keys -d 12 | sort -u | grep -c .)  files=$(find . -name '*.md' -not -path './.git/*' | grep -vE 'pages/|journals/' | wc -l)"   # find (not git ls-files) so uncommitted new notes count
 ```
 Fix any real `DANGLING` (usually a wrong-folder key or a label ≠ title), and any orphan (link it from a hub).
 

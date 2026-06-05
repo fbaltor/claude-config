@@ -29,5 +29,6 @@ Before answering anything about the user, their projects, preferences, machines,
 4. **Answer from what you paged in**, naming the notes it came from. If `find` surfaces nothing relevant, say the fact **isn't in memory** — never fabricate.
 
 ## Notes
-- Notes often end with a source-of-truth pointer (e.g. "`~/quant/STATUS.md`"); follow it when freshness matters — the note may be a snapshot.
+- **Ingested notes are canonical** — trust them as the source of truth. **Reference-only notes** (live workspaces, code projects) end with a `gf`-jumpable pointer (e.g. `` `/home/fbaltor/quant/STATUS.md` ``) to a source that stays authoritative — follow it when freshness matters.
+- **Hubs now have deeper subtrees** (ingested docs decompose into an overview + leaves). Retrieve the overview at `-d 1`, then page in the one relevant branch — don't pull a whole domain at high `-d`.
 - Read-only. To persist something new, use the `remember` skill.
