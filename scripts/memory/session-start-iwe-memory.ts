@@ -19,7 +19,7 @@
  * hookSpecificOutput.additionalContext is silently merged into the session.
  * stdin is intentionally ignored (we need none of the SessionStart payload).
  */
-import { readFileSync } from "node:fs";
+import { appendFileSync, readFileSync } from "node:fs";
 
 const HOME = process.env.HOME ?? "";
 const INDEX = `${HOME}/memory-iwe/index.md`;
@@ -50,6 +50,18 @@ const protocol = [
   "",
   map,
 ].join("\n");
+
+// Durable activation breadcrumb — written ONLY when we actually inject, so
+// `tail ~/.claude/hooks/iwe-memory.log` objectively confirms iwe memory was
+// active for a session (normal sessions leave no line). Best-effort.
+try {
+  appendFileSync(
+    `${HOME}/.claude/hooks/iwe-memory.log`,
+    `[${new Date().toISOString()}] iwe-memory ACTIVE (CC_MEM=${mode}) — injected ${protocol.length} chars from ${INDEX}\n`,
+  );
+} catch {
+  // logging must never block the session
+}
 
 process.stdout.write(
   JSON.stringify({
