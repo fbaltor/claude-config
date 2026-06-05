@@ -22,6 +22,16 @@
             "statusMessage": "Loading caveman mode..."
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/fbaltor/.claude/scripts/node_modules/.bin/tsx \"/home/fbaltor/.claude/scripts/memory/session-start-iwe-memory.ts\"",
+            "timeout": 10,
+            "statusMessage": "Loading iwe memory map..."
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
