@@ -36,3 +36,4 @@ hooks/hook-debug.log
 
 # Plans and research are ignored by default
 # Use `git add -f` to track specific ones
+hooks/*.log

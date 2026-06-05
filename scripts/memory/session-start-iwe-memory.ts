@@ -24,6 +24,20 @@ import { appendFileSync, readFileSync } from "node:fs";
 const HOME = process.env.HOME ?? "";
 const INDEX = `${HOME}/memory-iwe/index.md`;
 
+// Local ISO-8601 timestamp: same sortable shape as toISOString() but in the
+// system timezone with a real offset (e.g. -03:00) instead of forced-UTC "Z",
+// so the log reads in local time and matches `date`/`watch` output.
+const localTimestamp = (d = new Date()): string => {
+  const pad = (n: number, w = 2) => String(Math.abs(n)).padStart(w, "0");
+  const off = -d.getTimezoneOffset(); // minutes east of UTC
+  const sign = off >= 0 ? "+" : "-";
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    `T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}` +
+    `.${pad(d.getMilliseconds(), 3)}${sign}${pad(off / 60)}:${pad(off % 60)}`
+  );
+};
+
 // Opt-in: inject only when CC_MEM explicitly selects a memory mode (set by the
 // `claude --iwe` launcher). Unset / "off" / anything else => normal session,
 // native auto-memory untouched, no map injected.
@@ -57,7 +71,7 @@ const protocol = [
 try {
   appendFileSync(
     `${HOME}/.claude/hooks/iwe-memory.log`,
-    `[${new Date().toISOString()}] iwe-memory ACTIVE (CC_MEM=${mode}) — injected ${protocol.length} chars from ${INDEX}\n`,
+    `[${localTimestamp()}] iwe-memory ACTIVE (CC_MEM=${mode}) — injected ${protocol.length} chars from ${INDEX}\n`,
   );
 } catch {
   // logging must never block the session
