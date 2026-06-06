@@ -5,7 +5,7 @@ allowed-tools: [Bash, Read, Edit, Write, Grep]
 
 # Remember — iwe long-term memory (write)
 
-Persist a durable fact into the iwe note-graph at `~/memory-iwe` so future sessions can recall it. Write half of the iwe memory system (`recall` is the read half).
+Persist a durable fact into the iwe note-graph at `~/memory-iwe` so future sessions can recall it. Write half of the iwe memory system (`recall` is the read half). In `claude --iwe` sessions the `iwe_create` / `iwe_update` / `iwe_extract` / `iwe_rename` / `iwe_normalize` MCP tools write to the graph natively; this skill is the policy layer over them (what to save, where it goes, normalize + verify + commit).
 
 > **Guard — iwe-memory sessions only.** Run `echo "$CC_MEM"`. If it is not `map` (or `primer`), native auto-memory is active — do **not** use this skill; let native memory handle it.
 
@@ -26,8 +26,14 @@ If an existing note covers it → **update** it (`Edit`/`iwe update`). Otherwise
 
 ## 3. Placement (keep the graph connected — no orphans)
 - New leaf at `<domain>/<kebab-key>.md` under the right domain (`me`, `machines`, `quant`, `tooling`, `preferences`, `job-search`, …).
-- **Link it from that domain's hub note**: add a `- [[domain/key|Title]] — one-line hook` bullet under the hub's `## Notes`.
-- A genuinely new domain → add a hub note at the root and link it from `index.md` (the injected map) so the map stays complete.
+- **Link it from that domain's hub as an inclusion edge** — under the hub's `## Notes`, the one-line hook as a paragraph, then the child as an **own-line wiki link**:
+  ```markdown
+  One-line hook describing the note.
+
+  [[domain/key|Title]]
+  ```
+  The own-line link is what makes the leaf a graph *child* (so `retrieve -d` pages it). A `- [[key]] — hook` bullet is only an inline reference — no edge. A **cross-domain** pointer (the note's structural home is another domain) stays inline in the hub's `Related:` line instead.
+- A genuinely new domain → add a hub note at the root and add it as an **own-line link** in `index.md` (the root MOC / injected map) so the tree stays complete.
 
 ## 4. Conventions (full list in `~/memory-iwe/conventions.md`)
 - **One physical line per paragraph and bullet** — never hard-wrap (`normalize` joins soft-wrapped lines).
