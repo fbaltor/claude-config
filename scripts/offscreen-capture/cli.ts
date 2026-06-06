@@ -1,7 +1,7 @@
 #!/usr/bin/env -S npx tsx
 // CLI entry point.
 //
-//   npx tsx cli.ts --backend sway --profile obsidian --vault ~/memory-iwe --view graph --out graph.png
+//   npx tsx cli.ts --backend sway --profile obsidian --vault ~/memory --view graph --out graph.png
 //
 // Backends and profiles are registries so new ones drop in without touching the CLI.
 
@@ -21,7 +21,7 @@ const backends: Record<string, Backend> = {
 function buildProfile(name: string, a: Args): AppProfile {
   switch (name) {
     case "obsidian": {
-      const vault = a.vault ? String(a.vault) : path.join(os.homedir(), "memory-iwe");
+      const vault = a.vault ? String(a.vault) : path.join(os.homedir(), "memory");
       const view = (a.view as "graph" | "default") ?? "graph";
       return obsidianProfile({ vault, view });
     }

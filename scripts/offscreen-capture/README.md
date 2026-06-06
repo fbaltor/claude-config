@@ -29,7 +29,7 @@ canvas content (e.g. Obsidian's graph) renders GPU-accelerated — no software-G
 
 ```bash
 cd ~/.claude/scripts/offscreen-capture
-npx tsx cli.ts --backend sway --profile obsidian --vault ~/memory-iwe --view graph --out /tmp/graph.png
+npx tsx cli.ts --backend sway --profile obsidian --vault ~/memory --view graph --out /tmp/graph.png
 # then open /tmp/graph.png
 ```
 
