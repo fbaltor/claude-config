@@ -41,7 +41,7 @@ async function fetchIssue(input: string): Promise<void> {
 
   const issue = result.nodes[0];
   if (!issue) {
-    console.log(`Issue \`${identifier}\` not found.`);
+    console.log(`Issue \`${resolvedId}\` not found.`);
     return;
   }
 

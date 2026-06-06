@@ -32,26 +32,44 @@ function run(
 }
 
 describe("linear-fetch usage help", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    // Run against a controlled repo on a NON-Linear branch so the outcome
+    // doesn't depend on whatever branch the test runner happens to be on.
+    tmpDir = mkdtempSync(join(tmpdir(), "linear-fetch-help-"));
+    const gitEnv = "-c user.email=t@t -c user.name=t";
+    execSync(`git init -q`, { cwd: tmpDir });
+    execSync(`git ${gitEnv} commit -q --allow-empty -m init`, { cwd: tmpDir });
+    execSync(`git checkout -q -b chore/no-linear-id`, { cwd: tmpDir });
+  });
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it("with no arguments, tells the user which commands are available", () => {
     // Slash-command invocation passes "$ARGUMENTS" — empty string when the
     // user types just `/linear`. Match that shape here.
-    const { code, stdout } = run('""');
+    const { code, stdout } = run('""', { cwd: tmpDir });
 
     assert.equal(code, 0);
     assert.match(stdout, /--fetch-issue/);
     assert.match(stdout, /--fetch-project/);
     assert.match(stdout, /linear-push-doc/);
-    // Help mode should not leak the free-form branch-context line.
-    assert.doesNotMatch(stdout, /Current branch/);
+    // Branch has no Linear ID, so help explains why rather than fetching.
+    assert.match(stdout, /doesn't contain a Linear issue ID/);
+    // Help mode must NOT emit the free-form `**Current branch:**` context line.
+    assert.doesNotMatch(stdout, /\*\*Current branch:\*\*/);
   });
 
   it("with a whitespace-only argument, still shows the usage help", () => {
-    const { code, stdout } = run('"   "');
+    const { code, stdout } = run('"   "', { cwd: tmpDir });
 
     assert.equal(code, 0);
     assert.match(stdout, /--fetch-issue/);
     assert.match(stdout, /--fetch-project/);
-    assert.doesNotMatch(stdout, /Current branch/);
+    assert.doesNotMatch(stdout, /\*\*Current branch:\*\*/);
   });
 });
 
