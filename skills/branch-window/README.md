@@ -92,6 +92,46 @@ on your machine, disable the guard:
 export BRANCH_WINDOW_GHOSTTY_FRESH=0
 ```
 
+### No new-tab support
+
+A common ask is to open the fork in a **new tab inside the running Ghostty app**
+instead of a new window. As of Ghostty 1.3.1 (GTK) this is not possible, by
+design — not an oversight in this skill.
+
+Branching requires running a command in the new surface
+(`-e claude --resume … --fork-session "<prompt>"`). But passing *any* CLI args
+makes Ghostty "assume we want instance-specific configuration" and **disable GTK
+single-instance**, so every invocation becomes its own process → a new
+top-level window. With single-instance forced on, the GTK `activate` signal
+can't carry a command anyway, there is no `--tab`/`--new-tab` flag, and
+`+new_tab` doesn't work from the CLI (`ghostty +list-actions` exposes only a
+`+new-window` CLI action).
+
+Upstream confirms this:
+
+- [#12136 — CLI: support opening new tabs in an existing window](https://github.com/ghostty-org/ghostty/issues/12136)
+  — asked for exactly `ghostty +new-tab -e <cmd>`; **closed as not planned**.
+- [#4579 — start a new tab to an existing instance from the command line](https://github.com/ghostty-org/ghostty/discussions/4579)
+  — open request; "doesn't exist yet," gated behind a future scripting API.
+- [#2353 — Scripting API](https://github.com/ghostty-org/ghostty/discussions/2353)
+  — no unified IPC shipped. Linux D-Bus exposes only *new-window*; macOS gained
+  AppleScript (App Intents) in 1.3+, but this is Linux/GTK.
+
+There is a D-Bus call that talks to the running instance, but it only opens an
+**empty** window — it can't carry the `-e` command or target a tab, so it's
+useless for branching:
+
+```bash
+gdbus call --session --dest com.mitchellh.ghostty \
+  --object-path /com/mitchellh/ghostty \
+  --method org.gtk.Actions.Activate new-window '[]' '{}'
+```
+
+Re-evaluate if Ghostty ships a parameterized `+new-tab` or a scripting API that
+can run a command in a tab of the existing instance. Until then, use a pane
+backend (tmux/wezterm/kitty) if you want the fork beside the original instead of
+in a separate window.
+
 ## Adding a backend
 
 1. Create `backends/<name>.ts` exporting a `Backend` (see `lib/types.ts`).

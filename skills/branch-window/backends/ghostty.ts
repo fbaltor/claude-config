@@ -6,6 +6,9 @@ import { hasBin } from "../lib/util.ts";
 // Ghostty has no CLI control IPC (no `ghostty split` / remote socket), so it
 // can only open a fresh OS *window*, never a scriptable pane. Hence tier
 // "window-only": core warns once if --split was requested, then proceeds here.
+// A new *tab* in the running app is impossible for the same reason: passing args
+// (the `-e` command below) disables GTK single-instance, and there's no tab IPC
+// or --new-tab flag. See README.md "No new-tab support" (upstream #12136).
 //
 // Known GTK bug: when a Ghostty instance is already running, `ghostty -e <cmd>`
 // can be routed to the existing instance over D-Bus and the command payload is
