@@ -22,7 +22,7 @@ Before answering anything about the user, their projects, preferences, machines,
    cd ~/memory-iwe && iwe retrieve -k <key> -d 2 -c 1
    ```
    Keys are **root-relative and extensionless** — e.g. `me`, `me/profile`, `quant/status`.
-3. **Widen by following links.** Note bodies contain `[Title](key)` links and frontmatter `referencedBy` (backlinks). Retrieve the ones you need:
+3. **Widen by following links.** Note bodies contain `[[key|Title]]` wiki links and frontmatter `referencedBy` (backlinks, which now resolve from any note). Retrieve the ones you need:
    ```bash
    cd ~/memory-iwe && iwe retrieve -k <linked-key> -d 1 -c 0
    ```

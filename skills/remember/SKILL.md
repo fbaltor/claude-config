@@ -26,13 +26,13 @@ If an existing note covers it → **update** it (`Edit`/`iwe update`). Otherwise
 
 ## 3. Placement (keep the graph connected — no orphans)
 - New leaf at `<domain>/<kebab-key>.md` under the right domain (`me`, `machines`, `quant`, `tooling`, `preferences`, `job-search`, …).
-- **Link it from that domain's hub note**: add a `- [Title](domain/key) — one-line hook` bullet under the hub's `## Notes`.
+- **Link it from that domain's hub note**: add a `- [[domain/key|Title]] — one-line hook` bullet under the hub's `## Notes`.
 - A genuinely new domain → add a hub note at the root and link it from `index.md` (the injected map) so the map stays complete.
 
 ## 4. Conventions (full list in `~/memory-iwe/conventions.md`)
 - **One physical line per paragraph and bullet** — never hard-wrap (`normalize` joins soft-wrapped lines).
 - First `#` heading is the note's **title**; one concept per note; kebab-case keys.
-- Cross-refs are **iwe-native** `[Title](key)` — root-relative key, **no `.md`**, and the **link label must equal the target note's H1 title** (otherwise `normalize` rewrites it or it silently dangles).
+- Cross-refs are **piped wiki links** `[[key|Title]]` — root-relative key, **no `.md`**, and the **display text after `|` must equal the target note's H1 title** (otherwise `normalize` rewrites it or it silently dangles). iwe resolves wiki links by path/basename across the whole vault, so they resolve from any note and survive moves. (Markdown `[](key)` links resolve folder-relative and break for non-root notes — don't use them.)
 - **Ingest vs reference (the core model — see `~/memory-iwe/conventions.md`):** settled pure-knowledge → write the **full content** (decompose if >~500 words into leaves under an overview note); **live workspaces & code projects** → a **reference-only summary + pointer**, the repo stays canonical (don't mirror).
 - **External resources = `gf`-jumpable absolute paths in inline code** (e.g. `` `/home/fbaltor/quant/STATUS.md` ``). Never markdown-link a local file — `normalize` mangles it (collapses `file://`, strips `.md`, treats bare paths as note-keys). Only web URLs may be markdown links.
 - **End with provenance:** ingested → *"Ingested in full from `/abs/path` (settled; wiki canonical)"*; reference-only → *"Canonical source (jump with `gf`): `/abs/path` — summary; edit the source."*
@@ -42,8 +42,8 @@ If an existing note covers it → **update** it (`Edit`/`iwe update`). Otherwise
 cd ~/memory-iwe
 iwe normalize && git diff --stat                       # canonicalize; review changes
 iwe normalize && git diff --quiet && echo "normalize idempotent OK"   # 2nd pass must be a no-op
-# link integrity — every [](key) resolves (the `key`/`note-key` doc examples are expected):
-grep -rhoE '\]\([a-z0-9][a-z0-9/_-]*\)' --include='*.md' . | sed -E 's/^\]\(//;s/\)$//' | sort -u \
+# link integrity — every [[key]] resolves (the `key`/`note-key`/`wikilink(s)` doc examples are expected):
+grep -rhoE '\[\[[a-z0-9][a-z0-9/_-]*(\|[^]]*)?\]\]' --include='*.md' . | sed -E 's/^\[\[//;s/(\|[^]]*)?\]\]$//' | sort -u \
   | while read -r k; do [ -f "$k.md" ] || echo "DANGLING: $k"; done
 # reachability — no orphans: reachable keys should equal note files:
 echo "reachable=$(iwe tree -f keys -d 12 | sort -u | grep -c .)  files=$(find . -name '*.md' -not -path './.git/*' | grep -vE 'pages/|journals/' | wc -l)"   # find (not git ls-files) so uncommitted new notes count
