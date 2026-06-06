@@ -24,7 +24,7 @@ README and in memory `screenshot-offscreen-gui-nixos.md`.
 
 ```bash
 cd ~/.claude/scripts/offscreen-capture
-npx tsx cli.ts --backend sway --profile obsidian --vault ~/memory-iwe --view graph --out /tmp/osc.png
+npx tsx cli.ts --backend sway --profile obsidian --vault ~/memory --view graph --out /tmp/osc.png
 ```
 
 Then **`Read` the output PNG** to evaluate it. Pick a unique `--out` under `/tmp`.
