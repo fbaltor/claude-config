@@ -6,11 +6,28 @@ This machine runs **NixOS**: `/bin/bash` does not exist (only `/bin/sh`). Any sc
 
 **Always use `#!/usr/bin/env bash` (never `#!/bin/bash`)** for shell scripts here. This silently broke the statusLine until the shebang was fixed.
 
+## Memory
+
+Long-term memory on this machine is the **iwe note-graph at `~/memory`** (plain Markdown linked notes), **not** Claude's native auto-memory. This is the **default for every `claude` session**; **`claude --native`** opts out (native auto-memory, no iwe). The `claude` wrapper lives in `~/nixos-config/home/fbaltor/bash/bashrc`.
+
+- **How it loads (default sessions):** the `SessionStart` hook (`session-start-iwe-memory.ts`) injects the `index` MOC **map** + a recall protocol when `CC_MEM=map`; facts are **paged in on demand**, never preloaded. The graph is also the **`iwe-memory` MCP server** (`mcp__iwe-memory__iwe_find` / `iwe_retrieve` / `iwe_create` / …) — prefer those tools over shelling `iwe`.
+- **Read/write** via the `recall` and `remember` skills; both gate on `$CC_MEM`, so they no-op under `--native`. Notes are hub→leaf **inclusion trees** (own-line wiki links); `iwe retrieve -k <key> -d N` pages a branch, starting from `index`.
+- **Native memory is off at runtime, not in config:** the wrapper sets `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` per default session, so `/memory` reads "Auto-memory: off". The `autoMemoryEnabled: true` setting is left on **on purpose** so `--native` sessions still get native memory. `/memory` only manages native memory + the `CLAUDE.md` instruction files — it has no awareness of iwe.
+- **Reference:** the system's own doc is `pkm/iwe-as-cc-memory` in the library; note-writing conventions are `~/memory/conventions.md`. Runs on iwe **0.3.2** (`iwec`), pinned in `home.nix`.
+
 ## Hooks
 
-Hooks are configured in `/home/fbaltor/.claude/settings.json` under the `hooks` key. Shared types and `readHookStdin()` live in `/home/fbaltor/.claude/scripts/lib/hooks.ts`. All hooks are TypeScript, run via `npx tsx`.
+Hook scripts live in `/home/fbaltor/.claude/hooks/` (Bash-tool hooks) and `/home/fbaltor/.claude/scripts/memory/` (the memory hook); the Bash-tool hooks share types + `readHookStdin()` from `/home/fbaltor/.claude/scripts/lib/hooks.ts` and run via `tsx`. **Global** hooks are registered in `/home/fbaltor/.claude/settings.json`; the **project** Bash hooks below are *not* global — wire them into each work repo's `.claude/settings.json`.
 
-### Active hooks
+### Global hooks (`~/.claude/settings.json`)
+
+| Event | Script | Purpose |
+|---|---|---|
+| SessionStart | `session-start-iwe-memory.ts` | Injects the `~/memory` iwe map + recall protocol when `CC_MEM=map` (default sessions — see Memory) |
+
+(The caveman plugin also registers `SessionStart` `caveman-activate.js` + `UserPromptSubmit` `caveman-mode-tracker.js` — plugin-managed, not hand-maintained.)
+
+### Project hooks (per work repo `.claude/settings.json`; scripts in `~/.claude/hooks/`)
 
 | Event | Matcher | Script | Purpose |
 |---|---|---|---|

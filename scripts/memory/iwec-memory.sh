@@ -3,8 +3,9 @@
 # library. iwec resolves its knowledge graph from the current working directory
 # (see crates/iwec/src/main.rs: env::current_dir()), so cd in before exec.
 #
-# Wired into `claude --iwe` via ~/.claude/iwe-mcp.json (opt-in). Plain `claude`
-# never loads it. See pkm/iwe-as-cc-memory in the library for the whole system.
+# Loaded by the default `claude` session via ~/.claude/scripts/memory/iwe-mcp.json
+# (--mcp-config in the bashrc wrapper); `claude --native` does not load it. See
+# pkm/iwe-as-cc-memory in the library for the whole system.
 set -euo pipefail
 cd "$HOME/memory" || exit 1
 exec iwec

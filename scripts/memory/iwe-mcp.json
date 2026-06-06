@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "iwe-memory": {
+      "command": "/home/fbaltor/.claude/scripts/memory/iwec-memory.sh",
+      "args": [],
+      "env": {}
+    }
+  }
+}
