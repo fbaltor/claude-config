@@ -1,0 +1,17 @@
+packages:
+  - 'reviews'
+  - 'meta-workflow'
+
+# Single source of truth for shared dev tooling. Reference from any
+# package.json with "<dep>": "catalog:". Bump the version here once and
+# every package picks it up on the next install — no per-package drift.
+catalog:
+  tsx: ^4.21.0
+  '@types/node': ^25.5.0
+  typescript: ^5.7.0
+
+# esbuild (a transitive of tsx) ships a statically-linked Go binary, so its
+# install script is safe to run on NixOS. Approving it here silences pnpm 10's
+# "Ignored build scripts" warning permanently — a recorded decision, not a prompt.
+onlyBuiltDependencies:
+  - esbuild
