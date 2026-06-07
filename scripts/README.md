@@ -135,19 +135,7 @@ Files must have YAML frontmatter with `linear_document_id: <uuid>` to link to a 
 
 ## Hooks
 
-Hooks are TypeScript scripts in `~/.claude/hooks/` that run automatically via Claude Code's hook system (configured in `~/.claude/settings.json`).
-
-### `hooks/pre-pr-check-doc-sync.ts`
-
-**Event:** `PreToolUse` on `Bash` (filtered to `gh pr create` commands)
-
-Checks if Linear-linked markdown files changed on the current branch have a `linear_sync_hash` in frontmatter that matches the current body content. Only docs in the branch diff (vs `main`) are checked — unchanged docs are skipped. **Blocks** the PR creation (exit 2) if any are out of sync, prompting to run `/linear-push-doc` first.
-
-### `hooks/post-pr-update-linear-status.ts`
-
-**Event:** `PostToolUse` on `Bash` (filtered to successful `gh pr create` commands)
-
-After a PR is created, extracts the Linear issue ID from the current branch name and updates the issue status to "Code review".
+Hook scripts live in `~/.claude/hooks/` and run via Claude Code's hook system (configured in `~/.claude/settings.json`). Current memory hooks: `post-memory-update-transparency.ts` (announces iwe graph writes with a `📝` line) and `user-prompt-memory-nudge.mjs` (nudges to persist durable facts). See the **Hooks** section of `~/.claude/CLAUDE.md` for the authoritative table.
 
 ## Issues resolved
 

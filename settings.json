@@ -44,6 +44,27 @@
             "statusMessage": "Tracking caveman mode..."
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/home/fbaltor/.claude/hooks/user-prompt-memory-nudge.mjs\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "mcp__iwe-memory__iwe_(create|update|extract|rename|delete|inline|squash)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/fbaltor/.claude/scripts/node_modules/.bin/tsx \"/home/fbaltor/.claude/hooks/post-memory-update-transparency.ts\"",
+            "timeout": 10
+          }
+        ]
       }
     ]
   },

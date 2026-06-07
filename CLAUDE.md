@@ -17,23 +17,17 @@ Long-term memory on this machine is the **iwe note-graph at `~/memory`** (plain 
 
 ## Hooks
 
-Hook scripts live in `/home/fbaltor/.claude/hooks/` (Bash-tool hooks) and `/home/fbaltor/.claude/scripts/memory/` (the memory hook); the Bash-tool hooks share types + `readHookStdin()` from `/home/fbaltor/.claude/scripts/lib/hooks.ts` and run via `tsx`. **Global** hooks are registered in `/home/fbaltor/.claude/settings.json`; the **project** Bash hooks below are *not* global — wire them into each work repo's `.claude/settings.json`.
+Hook scripts live in `/home/fbaltor/.claude/hooks/` and `/home/fbaltor/.claude/scripts/memory/` (the memory hook). TS hooks run via `tsx` and share types + `readHookStdin()` from `/home/fbaltor/.claude/scripts/lib/hooks.ts`; **hot-path** hooks (every prompt/bash) are plain ESM `.mjs` run via `node` (~40ms startup vs tsx ~250ms), self-contained so they load no shared lib. `.mjs` is used because `hooks/package.json` is `type: commonjs` (the caveman plugin's `.js` files need `require`), so `.ts`/`.mjs` are the only ways to get ESM there. All hooks below are **global**, registered in `/home/fbaltor/.claude/settings.json`.
 
 ### Global hooks (`~/.claude/settings.json`)
 
 | Event | Script | Purpose |
 |---|---|---|
-| SessionStart | `session-start-iwe-memory.ts` | Injects the `~/memory` iwe map + recall protocol when `CC_MEM=map` (default sessions — see Memory) |
+| SessionStart | `session-start-iwe-memory.ts` (tsx) | Injects the `~/memory` iwe map + recall protocol when `CC_MEM=map` (default sessions — see Memory) |
+| PostToolUse (`mcp__iwe-memory__iwe_*` writes) | `post-memory-update-transparency.ts` (tsx) | Emits a user-visible `📝 Long-term memory (~/memory) updated — …` line on each graph write (create/update/extract/rename/delete/inline/squash) — the iwe analog of native "Updating memory". Silent on dry-run/list/interrupted. |
+| UserPromptSubmit | `user-prompt-memory-nudge.mjs` (node) | On a durable-fact signal in the prompt (preference / correction / standing instruction), injects a one-line reminder to consider the `remember` skill. Recall-tuned regex; gated to `CC_MEM` map/primer (fail-open if unset); raises salience only — does **not** force a write. |
 
 (The caveman plugin also registers `SessionStart` `caveman-activate.js` + `UserPromptSubmit` `caveman-mode-tracker.js` — plugin-managed, not hand-maintained.)
-
-### Project hooks (per work repo `.claude/settings.json`; scripts in `~/.claude/hooks/`)
-
-| Event | Matcher | Script | Purpose |
-|---|---|---|---|
-| PreToolUse | Bash | `pre-pr-check-doc-sync.ts` | Blocks `gh pr create` if Linear-linked docs are out of sync |
-| PostToolUse | Bash | `post-checkout-update-linear-status.ts` | Moves Linear issue → "Desenvolvimento" on `git checkout`/`switch` |
-| PostToolUse | Bash | `post-pr-update-linear-status.ts` | Moves Linear issue → "Code review" on `gh pr create` |
 
 ### Hook stdin schema (Bash tool, actual format as of 2026-03-24)
 
