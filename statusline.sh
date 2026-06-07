@@ -80,11 +80,13 @@ fi
 
 CC_PART=""
 if [ -n "$CUR" ]; then
-  if [ -n "$LATEST" ] && [ "$LATEST" != "$CUR" ] \
+  if [ -z "$LATEST" ]; then
+    CC_PART=" | cc ${CUR}"                            # latest unknown (cache empty/cold)
+  elif [ "$LATEST" != "$CUR" ] \
      && [ "$(printf '%s\n%s\n' "$CUR" "$LATEST" | sort -V | tail -n1)" = "$LATEST" ]; then
     CC_PART=" | ${GOLD}cc ${CUR}→${LATEST}${RESET}"   # update available
   else
-    CC_PART=" | cc ${CUR} ${GREEN}✓${RESET}"          # on latest (or latest unknown)
+    CC_PART=" | cc ${CUR} ${GREEN}✓${RESET}"          # confirmed on latest
   fi
 fi
 
