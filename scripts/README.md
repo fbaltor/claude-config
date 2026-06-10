@@ -135,7 +135,7 @@ Files must have YAML frontmatter with `linear_document_id: <uuid>` to link to a 
 
 ## Hooks
 
-Hook scripts live in `~/.claude/hooks/` and run via Claude Code's hook system (configured in `~/.claude/settings.json`). Current memory hooks: `post-memory-update-transparency.ts` (announces iwe graph writes with a `📝` line) and `user-prompt-memory-nudge.mjs` (nudges to persist durable facts). See the **Hooks** section of `~/.claude/CLAUDE.md` for the authoritative table.
+Hook scripts live in `~/.claude/hooks/` and run via Claude Code's hook system (configured in `~/.claude/settings.json`). Current memory hooks: `post-memory-update-transparency.ts` (announces iwe graph writes with a `📝` line) and `user-prompt-memory-nudge.js` (nudges to persist durable facts). See the **Hooks** section of `~/.claude/CLAUDE.md` for the authoritative table.
 
 ## Issues resolved
 

@@ -17,7 +17,7 @@ Long-term memory on this machine is the **iwe note-graph at `~/memory`** (plain 
 
 ## Hooks
 
-Hook scripts live in `/home/fbaltor/.claude/hooks/` and `/home/fbaltor/.claude/scripts/memory/` (the memory hook). TS hooks run via `tsx` and share types + `readHookStdin()` from `/home/fbaltor/.claude/scripts/lib/hooks.ts`; **hot-path** hooks (every prompt/bash) are plain ESM `.mjs` run via `node` (~40ms startup vs tsx ~250ms), self-contained so they load no shared lib. `.mjs` is used because `hooks/package.json` is `type: commonjs` (the caveman plugin's `.js` files need `require`), so `.ts`/`.mjs` are the only ways to get ESM there. All hooks below are **global**, registered in `/home/fbaltor/.claude/settings.json`.
+Hook scripts live in `/home/fbaltor/.claude/hooks/` and `/home/fbaltor/.claude/scripts/memory/` (the memory hook). TS hooks run via `tsx` and share types + `readHookStdin()` from `/home/fbaltor/.claude/scripts/lib/hooks.ts`; **hot-path** hooks (every prompt/bash) are plain ESM `.js` run via `node` (~40ms startup vs tsx ~250ms), self-contained so they load no shared lib. `hooks/package.json` is `{"type": "module"}`, so plain `.js` there is ESM. All hooks below are **global**, registered in `/home/fbaltor/.claude/settings.json`.
 
 ### Global hooks (`~/.claude/settings.json`)
 
@@ -25,9 +25,9 @@ Hook scripts live in `/home/fbaltor/.claude/hooks/` and `/home/fbaltor/.claude/s
 |---|---|---|
 | SessionStart | `session-start-iwe-memory.ts` (tsx) | Injects the `~/memory` iwe map + recall protocol when `CC_MEM=map` (default sessions — see Memory) |
 | PostToolUse (`mcp__iwe-memory__iwe_*` writes) | `post-memory-update-transparency.ts` (tsx) | Emits a user-visible `📝 Long-term memory (~/memory) updated — …` line on each graph write (create/update/extract/rename/delete/inline/squash) — the iwe analog of native "Updating memory". Silent on dry-run/list/interrupted. |
-| UserPromptSubmit | `user-prompt-memory-nudge.mjs` (node) | On a durable-fact signal in the prompt (preference / correction / standing instruction), injects a one-line reminder to consider the `remember` skill. Recall-tuned regex; gated to `CC_MEM` map/primer (fail-open if unset); raises salience only — does **not** force a write. |
+| UserPromptSubmit | `user-prompt-memory-nudge.js` (node) | On a durable-fact signal in the prompt (preference / correction / standing instruction), injects a one-line reminder to consider the `remember` skill. Recall-tuned regex; gated to `CC_MEM` map/primer (fail-open if unset); raises salience only — does **not** force a write. |
 
-(The caveman plugin also registers `SessionStart` `caveman-activate.js` + `UserPromptSubmit` `caveman-mode-tracker.js` — plugin-managed, not hand-maintained.)
+(The caveman plugin also registers `SessionStart` `caveman-activate.js` + `UserPromptSubmit` `caveman-mode-tracker.js` — plugin-managed, run from the plugin cache, nothing in `~/.claude/hooks/` or settings.json. Idiomatic setup is plugin-only; the legacy `--with-hooks` copies were removed 2026-06-10.)
 
 ### Hook stdin schema (Bash tool, actual format as of 2026-03-24)
 

@@ -9,9 +9,8 @@
 // corrections, standing instructions). Implicit facts with no signal word are
 // out of scope here (that's the session-sweep's job).
 //
-// Standalone ESM (.mjs → unambiguously a module regardless of the commonjs
-// hooks/package.json that caveman's .js files need). No shared-lib import →
-// fast startup, since this runs on every prompt.
+// Standalone ESM (hooks/package.json is "type": "module"). No shared-lib
+// import → fast startup, since this runs on every prompt.
 //
 // Registered (UserPromptSubmit) in ~/.claude/settings.json.
 

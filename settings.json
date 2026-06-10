@@ -11,19 +11,9 @@
     ],
     "defaultMode": "bypassPermissions"
   },
-  "model": "claude-opus-4-8[1m]",
+  "model": "claude-fable-5",
   "hooks": {
     "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"/home/fbaltor/.claude/hooks/caveman-activate.js\"",
-            "timeout": 5,
-            "statusMessage": "Loading caveman mode..."
-          }
-        ]
-      },
       {
         "hooks": [
           {
@@ -40,17 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"/home/fbaltor/.claude/hooks/caveman-mode-tracker.js\"",
-            "timeout": 5,
-            "statusMessage": "Tracking caveman mode..."
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"/home/fbaltor/.claude/hooks/user-prompt-memory-nudge.mjs\"",
+            "command": "node \"/home/fbaltor/.claude/hooks/user-prompt-memory-nudge.js\"",
             "timeout": 5
           }
         ]
