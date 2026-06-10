@@ -41,8 +41,10 @@ export interface SpawnCtx {
   /**
    * Working directory the forked `claude` must launch in. `claude --resume`
    * resolves a session's transcript from the cwd's project slug, so the fork
-   * has to run in the original session's cwd or it errors with
-   * "No conversation found". Set to the parent session's cwd.
+   * has to run in the cwd whose slug owns that transcript — the session's START
+   * cwd, which differs from its current cwd if it `cd`'d mid-run. Launching
+   * elsewhere errors with "No conversation found". Resolved by
+   * `resolveForkCwd` (branch.ts) from the transcript, not process.cwd().
    */
   cwd: string;
   /** Process env, passed through so backends can read their own knobs. */

@@ -156,4 +156,20 @@ branch-window/
     tmux.ts            # pane
     wezterm.ts         # pane (stub)
     kitty.ts           # pane (stub)
+  branch.test.ts       # suites: resolveForkCwd, parseArgs, resolveClaudeBin
+  lib/types.test.ts    # suite: forkArgs
+  lib/select.test.ts   # suite: select / split reconciliation
 ```
+
+## Tests
+
+Zero-config: `node:test` + `node:assert`, run through the existing tsx loader (no
+package.json, no deps).
+
+```
+cd ~/.claude/skills/branch-window && npx tsx --test '**/*.test.ts'
+```
+
+`branch.ts` guards `main()` behind an `argv[1] === import.meta.url` check so test
+imports never spawn a terminal. `resolveForkCwd` takes a `projectsRoot` param so
+its tests run hermetically against a tmpdir, never the real `~/.claude/projects`.
