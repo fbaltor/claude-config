@@ -78,3 +78,23 @@ export function forkArgs(ctx: SpawnCtx): string[] {
   args.push(ctx.prompt);
   return args;
 }
+
+/**
+ * CC sets CLAUDE_CODE_CHILD_SESSION=1 in every subprocess env, and this skill
+ * runs inside a CC Bash/skill invocation, so the fork inherits it. On CC
+ * ≥2.1.17x an interactive child session silently skips ALL transcript writes
+ * (`shouldSkipPersistence`), leaving the fork unresumable, unforkable, and
+ * lost when its window closes. CLAUDE_CODE_FORCE_SESSION_PERSISTENCE is CC's
+ * escape hatch for exactly this gate.
+ */
+export const FORCE_PERSIST = "CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1";
+
+/**
+ * Full command every backend must exec: `env` wrapper pinning FORCE_PERSIST,
+ * then the `claude` fork argv. The wrapper — rather than this process's env —
+ * is what makes the var reach pane backends (tmux/wezterm/kitty), whose
+ * commands run under the mux SERVER's environment, not ours.
+ */
+export function forkCommand(ctx: SpawnCtx): string[] {
+  return ["env", FORCE_PERSIST, ctx.claudeBin, ...forkArgs(ctx)];
+}

@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import type { Backend, SpawnCtx } from "../lib/types.ts";
-import { forkArgs } from "../lib/types.ts";
+import { forkCommand } from "../lib/types.ts";
 import { hasBin } from "../lib/util.ts";
 
 // tmux is the pane-capable backend: when we're already inside tmux ($TMUX set)
@@ -18,8 +18,9 @@ export const tmux: Backend = {
   isAvailable: (env) => hasBin("tmux", env),
 
   spawn: (ctx: SpawnCtx) => {
-    // The command tmux will run inside the new pane/window.
-    const inner = [ctx.claudeBin, ...forkArgs(ctx)];
+    // The command tmux will run inside the new pane/window. forkCommand's env
+    // wrapper matters here: the pane runs under the tmux SERVER's environment.
+    const inner = forkCommand(ctx);
 
     // -c sets the new pane/window's start directory to the session's cwd so
     // `claude --resume` can locate the transcript.

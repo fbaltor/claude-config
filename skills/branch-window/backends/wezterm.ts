@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import type { Backend, SpawnCtx } from "../lib/types.ts";
-import { forkArgs } from "../lib/types.ts";
+import { forkCommand } from "../lib/types.ts";
 import { hasBin } from "../lib/util.ts";
 
 // wezterm backend. Pane-capable via `wezterm cli`. When already inside wezterm
@@ -18,7 +18,9 @@ export const wezterm: Backend = {
   isAvailable: (env) => hasBin("wezterm", env),
 
   spawn: (ctx: SpawnCtx) => {
-    const inner = [ctx.claudeBin, ...forkArgs(ctx)];
+    // forkCommand's env wrapper matters here: the command runs under the
+    // wezterm mux server's environment, not this process's.
+    const inner = forkCommand(ctx);
 
     // --cwd sets the new pane/window's directory to the session's cwd so
     // `claude --resume` can locate the transcript.

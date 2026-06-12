@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import type { Backend, SpawnCtx } from "../lib/types.ts";
-import { forkArgs } from "../lib/types.ts";
+import { forkCommand } from "../lib/types.ts";
 import { hasBin } from "../lib/util.ts";
 
 // kitty backend. Pane-capable via `kitty @ launch` over its remote-control
@@ -21,7 +21,9 @@ export const kitty: Backend = {
   isAvailable: (env) => hasBin("kitty", env),
 
   spawn: (ctx: SpawnCtx) => {
-    const inner = [ctx.claudeBin, ...forkArgs(ctx)];
+    // forkCommand's env wrapper matters here: the window runs under the kitty
+    // remote-control daemon's environment, not this process's.
+    const inner = forkCommand(ctx);
     const location = ctx.split === "v" ? "hsplit" : "vsplit";
     const args = [
       "@",

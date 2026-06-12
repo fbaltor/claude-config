@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import type { Backend, SpawnCtx } from "../lib/types.ts";
-import { forkArgs } from "../lib/types.ts";
+import { forkCommand } from "../lib/types.ts";
 import { hasBin } from "../lib/util.ts";
 
 // Ghostty has no CLI control IPC (no `ghostty split` / remote socket), so it
@@ -35,8 +35,7 @@ export const ghostty: Backend = {
       // but the detached spawn breaks inheritance, so set it explicitly.
       `--working-directory=${ctx.cwd}`,
       "-e",
-      ctx.claudeBin,
-      ...forkArgs(ctx),
+      ...forkCommand(ctx),
     ];
     // detached + unref == setsid: the new window outlives this skill process.
     spawn("ghostty", args, {
