@@ -55,6 +55,25 @@ So the trade is unavoidable: the prompt you pass becomes the fork's first turn.
 Afterwards the window stays fully interactive, exactly like a normal session
 opened at the branch point — you just spend one opening message to get there.
 
+## Forced transcript persistence (CLAUDE_CODE_CHILD_SESSION gate)
+
+Claude Code sets `CLAUDE_CODE_CHILD_SESSION=1` in every subprocess env, and
+this skill runs inside a CC Bash/skill invocation — so the spawned fork
+inherits it. On CC ≥2.1.17x an **interactive** session with that var set
+silently skips *all* transcript writes (`shouldSkipPersistence` →
+`CLAUDE_CODE_CHILD_SESSION && interactive && !printMode`): the fork runs fine
+but `<fork-id>.jsonl` is never written, so the fork can't be resumed after
+closing, can't itself be branched ("No conversation found"), and is lost
+entirely if the window crashes.
+
+CC's escape hatch is `CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1`. Every backend
+therefore execs the fork through `forkCommand()` (lib/types.ts), which prefixes
+`env CLAUDE_CODE_FORCE_SESSION_PERSISTENCE=1 …`. The `env`-wrapper form — not
+this process's env — is load-bearing for the pane backends: tmux/wezterm/kitty
+commands run under the mux **server's** environment, which doesn't see vars set
+in the skill process. Root-caused 2026-06-10 against CC 2.1.172 (strace: zero
+jsonl write-opens without the var; transcript written live with it).
+
 ## Backend selection
 
 1. `--backend` if given (errors if unknown or its binary isn't on PATH).
@@ -147,7 +166,7 @@ branch-window/
   SKILL.md
   branch.ts            # entry: parse args, get SID, select backend, dispatch
   lib/
-    types.ts           # Backend / Capabilities / SpawnCtx contract, forkArgs()
+    types.ts           # Backend / Capabilities / SpawnCtx contract, forkArgs(), forkCommand()
     select.ts          # backend resolution + split-vs-capability reconciliation
     util.ts            # hasBin(), warnOnce()
   backends/
@@ -157,7 +176,7 @@ branch-window/
     wezterm.ts         # pane (stub)
     kitty.ts           # pane (stub)
   branch.test.ts       # suites: resolveForkCwd, parseArgs, resolveClaudeBin
-  lib/types.test.ts    # suite: forkArgs
+  lib/types.test.ts    # suites: forkArgs, forkCommand
   lib/select.test.ts   # suite: select / split reconciliation
 ```
 
