@@ -29,34 +29,7 @@ Hook scripts live in `/home/fbaltor/.claude/hooks/` and `/home/fbaltor/.claude/s
 
 (The caveman plugin also registers `SessionStart` `caveman-activate.js` + `UserPromptSubmit` `caveman-mode-tracker.js` — plugin-managed, run from the plugin cache, nothing in `~/.claude/hooks/` or settings.json. Idiomatic setup is plugin-only; the legacy `--with-hooks` copies were removed 2026-06-10.)
 
-### Hook stdin schema (Bash tool, actual format as of 2026-03-24)
-
-The official docs may not match reality. The types below were captured from the actual hook runner. If hooks start failing silently, dump stdin with `cat > /tmp/hook-stdin-dump.json` to verify.
-
-```typescript
-// PreToolUse — tool_response is NOT present
-// PostToolUse — all fields present
-{
-  session_id: string;
-  transcript_path: string;
-  cwd: string;
-  permission_mode: string;
-  hook_event_name: "PreToolUse" | "PostToolUse" | "PostToolUseFailure";
-  tool_name: string;
-  tool_use_id: string;
-  tool_input: {
-    command: string;       // the Bash command
-    description?: string;  // the tool call description
-  };
-  tool_response: {         // PostToolUse only
-    stdout: string;
-    stderr: string;
-    interrupted: boolean;
-    isImage: boolean;
-    noOutputExpected: boolean;
-  };
-}
-```
+Before writing a new Bash-matcher hook, recall the captured stdin schema from memory (`iwe find hook stdin` → `tooling` branch) — official docs may not match reality. If hooks fail silently, dump stdin with `cat > /tmp/hook-stdin-dump.json`.
 
 ### Error handling convention
 
@@ -71,16 +44,9 @@ When a task involves multiple discrete deliverables (e.g., audit → plan → is
 
 ## File Organization
 
-- Save implementation plans to `/home/fbaltor/.claude/plans/`.
 - Save research/investigation documents to the project's `docs/` directory when working inside a project repo. Use `/home/fbaltor/.claude/research/` only for cross-project or non-repo investigations.
 - Use descriptive filenames with date prefixes: `YYYY-MM-DD-description.md` (e.g., `2026-03-18-lily-joo-save-error-investigation.md`).
 - Never save plans or research under `.claude/` within the project repo. Plans go to `/home/fbaltor/.claude/plans/`; investigation docs go to `docs/` in the repo.
-
-## Project Rule Overrides
-
-These personal preferences override conflicting rules in any project-level `AGENTS.md` or `CLAUDE.md`.
-
-- **Task file scratchpad** — Skip the "Task file" rule (create `tasks/<DD-MM-YYYY-task-name>.md` before non-trivial work) found in project AGENTS.md files. I decide manually where to put mid-work artifacts. Use in-conversation state (plans, todos) instead of a `tasks/` scratchpad, and do not treat the absence of a task file as a scope-lock violation.
 
 ## Testing
 
@@ -105,7 +71,3 @@ NEVER hand-write ASCII/Unicode box-drawing diagrams. Always use the mermaid-to-a
 3. Convert in-place: `npx tsx /home/fbaltor/.claude/scripts/mermaid-to-ascii.ts <file.md> --write`
 
 The script replaces ```mermaid blocks with rendered ASCII and appends the original mermaid source as an appendix. Powered by the `beautiful-mermaid` npm package (installed in `/home/fbaltor/.claude/scripts/`). Supports: flowcharts, state diagrams, sequence diagrams, class diagrams, ER diagrams, XY charts.
-
-## Linear Document Sync
-
-When asked to update/push/sync a document to Linear, use the `/linear-push-doc` skill with the file path as argument. For fetching issue context from the current branch, use `/linear --fetch-issue`. These skills live at `/home/fbaltor/.claude/skills/linear*/SKILL.md`.
