@@ -13,6 +13,17 @@ else
   PCT=$(printf '%.0f' "$PCT_RAW")
 fi
 
+# tokens currently in the context window (input incl. cache + output); null before first message
+TOKENS=$(echo "$input" | jq -r '(.context_window.total_input_tokens // 0) + (.context_window.total_output_tokens // 0)')
+TOK_PART=""
+if [ "$TOKENS" -gt 0 ] 2>/dev/null; then
+  if [ "$TOKENS" -ge 1000 ]; then
+    TOK_PART=" $(awk "BEGIN { printf \"%.1fk\", $TOKENS / 1000 }")"
+  else
+    TOK_PART=" ${TOKENS}"
+  fi
+fi
+
 # effort level from the schema (present when model supports reasoning effort)
 EFFORT=$(echo "$input" | jq -r '.effort.level // empty')
 
@@ -91,4 +102,4 @@ if [ -n "$CUR" ]; then
 fi
 
 # Format: user:cwd (branch) | context% | model [effort] [caveman] [cc-version]
-printf "${GREEN}$(whoami)${RESET}:${BLUE}${CWD}${GOLD}${GIT_BRANCH}${RESET} | ${PCT_COLOR}${PCT}%%${RESET} ctx | ${MODEL}${EFFORT_PART}${CAVE_PART}${CC_PART}"
+printf "${GREEN}$(whoami)${RESET}:${BLUE}${CWD}${GOLD}${GIT_BRANCH}${RESET} | ${PCT_COLOR}${PCT}%%${TOK_PART}${RESET} ctx | ${MODEL}${EFFORT_PART}${CAVE_PART}${CC_PART}"
