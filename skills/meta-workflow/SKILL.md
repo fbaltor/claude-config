@@ -65,18 +65,18 @@ Rules:
 
 ## Contract derivation (heuristic)
 
-From each phase section in the plan doc:
+Plan docs come from the `planner` sub-agent (`~/.claude/agents/planner.md`), which writes the canonical section structure below. Map each phase section to a contract:
 
-| Plan content                                                     | Maps to                          |
-|------------------------------------------------------------------|----------------------------------|
-| Phase heading + opening paragraph                                | `id` (slugified), `objective`    |
-| Bullets under `### Behavior` (or plainly WHAT-style bullets)     | `behavior_spec`                  |
-| Prose / code snippets describing HOW / approach                  | `docs_for_impl` (by plan anchor) |
-| Bullets under `### Success Criteria` or `Automated Verification` | `exit_criteria`                  |
-| "What We're NOT Doing" section (global or per-phase)             | `out_of_scope`                   |
-| `behavior_spec` + non-functional constraints + project rules     | `critic.checklist` (generated)   |
+| Plan content                                                        | Maps to                          |
+|---------------------------------------------------------------------|----------------------------------|
+| Phase heading + opening paragraph                                   | `id` (slugified), `objective`    |
+| Bullets under `### Behavior` (or plainly WHAT-style bullets)        | `behavior_spec`                  |
+| Prose / code under `### Implementation Notes` (HOW / approach)      | `docs_for_impl` (by plan anchor) |
+| Bullets under `### Success Criteria` → `#### Automated Verification` | `exit_criteria`                  |
+| "What We're NOT Doing" section (global or per-phase)                | `out_of_scope`                   |
+| `behavior_spec` + non-functional constraints + project rules        | `critic.checklist` (generated)   |
 
-Ambiguous bullets default to `docs_for_impl` and surface in the confirmation step. Err toward quarantining content away from the test-writer — over-strict isolation is safer than leaking implementation into tests.
+A hand-authored plan works too, as long as it carries these headers. Ambiguous bullets default to `docs_for_impl` and surface in the confirmation step. Err toward quarantining content away from the test-writer — over-strict isolation is safer than leaking implementation into tests.
 
 ## Phase execution
 
@@ -140,13 +140,13 @@ After critic returns:
 
 Default is `general-purpose`. Override per-phase in the contract when a specialist is sharper:
 
-| Phase concern                      | Recommended override      |
-|------------------------------------|---------------------------|
-| Refactor / rename / move           | `impact-analyzer`         |
-| Cross-codebase pattern consistency | `codebase-analyzer`       |
-| Finding similar existing patterns  | `codebase-pattern-finder` |
-| Code simplification opportunities  | `code-simplifier`         |
-| General code (default)             | `general-purpose`         |
+| Phase concern                      | Recommended override              |
+|------------------------------------|-----------------------------------|
+| Diff / correctness review          | `caveman:cavecrew-reviewer`       |
+| Code simplification opportunities  | `code-simplifier:code-simplifier` |
+| General code (default)             | `general-purpose`                 |
+
+Use only agent types that exist in this environment (check the session's agent list — names drift as plugins change). For a refactor's blast radius or cross-codebase pattern consistency there is no dedicated critic agent: keep `general-purpose` as the critic, but surface the evidence it checks against during the phase by first dispatching the `/impact_analysis` skill (reference inventory) or an `Explore` agent (find the existing patterns).
 
 Override applies only to that phase's critique; do not set it globally. For domain review that lives in a skill (`/security-review`, `/review`), invoke the skill via the `Skill` tool after the critic — the critic is the structural gate; skill checks are supplemental.
 
