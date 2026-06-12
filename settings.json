@@ -72,13 +72,13 @@
   "alwaysThinkingEnabled": true,
   "autoUpdatesChannel": "latest",
   "plansDirectory": "/home/fbaltor/.claude/plans",
+  "tui": "fullscreen",
   "autoMemoryEnabled": true,
   "showThinkingSummaries": true,
   "skipDangerousModePermissionPrompt": true,
-  "theme": "light",
+  "theme": "auto",
   "editorMode": "vim",
   "verbose": true,
   "autoCompactEnabled": false,
-  "skipAutoPermissionPrompt": true,
-  "tui": "fullscreen"
+  "skipAutoPermissionPrompt": true
 }
