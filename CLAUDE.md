@@ -71,3 +71,13 @@ NEVER hand-write ASCII/Unicode box-drawing diagrams. Always use the mermaid-to-a
 3. Convert in-place: `npx tsx /home/fbaltor/.claude/scripts/mermaid-to-ascii.ts <file.md> --write`
 
 The script replaces ```mermaid blocks with rendered ASCII and appends the original mermaid source as an appendix. Powered by the `beautiful-mermaid` npm package (installed in `/home/fbaltor/.claude/scripts/`). Supports: flowcharts, state diagrams, sequence diagrams, class diagrams, ER diagrams, XY charts.
+
+## Model Tiering
+
+The main thread (orchestrator) runs on **Opus** — the default for every new session. It does intake, research, execution dispatch, review, and debugging. **Fable is reserved for one thing only: planning, via the `planner` sub-agent.** Reaching Fable any other way is off-pattern.
+
+- **Planning** → dispatch the `planner` sub-agent (`~/.claude/agents/planner.md`, pinned `model: fable`) for any non-trivial change: multiple files, uncertain approach, or unfamiliar code. If you could describe the diff in one sentence, skip planning and just do it.
+  - The sub-agent **cannot ask the user questions or spawn its own sub-agents.** So FIRST, in the main thread: ask the user any clarifying questions (`AskUserQuestion`), and gather context (dispatch `Explore`/`cavecrew-investigator` for the broad search). THEN dispatch `planner` with a complete brief — the goal, the answered clarifications, and pointers to the key files/research.
+  - The planner writes the plan to `~/.claude/plans/` and returns the path + summary, or a `NEEDS-CLARIFICATION` list. On clarification, get the answers from the user and re-dispatch.
+- **Everything else keeps its existing model matching** — execution, search/explore, review subagents are unchanged by this rule.
+- **Never** switch the session model to Fable (`/model fable`) or set `CLAUDE_CODE_SUBAGENT_MODEL` — both defeat the guardrail that Fable is reached only through the `planner` agent.

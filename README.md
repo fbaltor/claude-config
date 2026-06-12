@@ -27,9 +27,10 @@ Skills are invoked via `/skill-name` inside Claude Code. Each lives in `skills/<
 
 | Skill | Command | Description |
 |-------|---------|-------------|
-| **Create Plan** | `/create_plan` | Interactive implementation planning with parallel research agents. Saves to `~/plans/`. |
-| **Implement Plan** | `/implement_plan` | Phase-by-phase execution of an approved plan with human verification gates. |
+| **Meta-Workflow** | `/meta-workflow` | Autonomous multi-phase execution of a plan doc: per-phase subagents, TDD isolation, adversarial critic gating, resumable. |
 | **Impact Analysis** | `/impact_analysis` | Find all files and lines affected by a proposed change (read-only). |
+
+> **Planning** is no longer a skill. Implementation plans are produced by the `planner` sub-agent (runs on Fable), dispatched by the orchestrator — see Sub-Agents below and the Model Tiering section of `CLAUDE.md`.
 | **Research Codebase** | `/research_codebase` | Deep codebase investigation. Spawns parallel sub-agents. Saves to `~/research/`. |
 | **Linear** | `/linear` | Fetch Linear issues/projects. Auto-detects issue from git branch (e.g. `JUMP-123`). |
 | **Linear Push Doc** | `/linear-push-doc` | Sync a local markdown file to a Linear document. |
@@ -42,11 +43,7 @@ Defined in `agents/*.md`. These are spawned by skills to run specialized tasks i
 
 | Agent | Model | Purpose |
 |-------|-------|---------|
-| **codebase-locator** | Sonnet | Find where files, directories, and components live |
-| **codebase-analyzer** | Sonnet | Understand how specific components work |
-| **codebase-pattern-finder** | Sonnet | Find existing code patterns and usage examples |
-| **impact-analyzer** | Opus | Exhaustive inventory of files affected by a change |
-| **web-search-researcher** | Sonnet | Research questions using web search |
+| **planner** | Fable | Produce a detailed, self-contained implementation plan from a brief. The only Fable-pinned agent; dispatched by the Opus orchestrator. |
 
 All agents operate as **documentarians** — they describe existing code without suggesting improvements unless asked.
 
@@ -115,28 +112,28 @@ Naming convention: `YYYY-MM-DD-kebab-case-description.md`
 
 ### Planning and Implementing a Feature
 
-Use `/create_plan` and `/implement_plan` together for structured, multi-phase work.
+The orchestrator (Opus) gathers context and dispatches the `planner` sub-agent (Fable) to write the plan; `/meta-workflow` then executes it.
 
 ```
-# 1. Create a plan — Claude researches the codebase and iterates with you
-/create_plan Add cursor-based pagination to all listing API endpoints
+# 1. Ask for a plan — just describe the work
+Plan: add cursor-based pagination to all listing API endpoints
 
-# Claude will:
-# - Spawn sub-agents to find relevant files and patterns
-# - Ask clarifying questions
-# - Present design options
-# - Write a detailed plan to ~/.claude/plans/2026-03-20-add-pagination.md
+# The orchestrator will:
+# - Ask any clarifying questions and gather context (Explore/investigator subagents)
+# - Dispatch the `planner` sub-agent (Fable) with a complete brief
+# - The planner writes a detailed plan to ~/.claude/plans/2026-03-20-add-pagination.md
+#   and returns the path + a summary (or a NEEDS-CLARIFICATION list)
 
 # 2. Review the plan, suggest changes, iterate until satisfied
 
-# 3. Implement it phase by phase
-/implement_plan ~/.claude/plans/2026-03-20-add-pagination.md
+# 3. Execute it autonomously, phase by phase
+/meta-workflow ~/.claude/plans/2026-03-20-add-pagination.md
 
-# Claude will:
-# - Implement Phase 1, run automated verification
-# - Pause for you to manually test
-# - Continue to Phase 2 after your confirmation
-# - Update checkboxes in the plan file as it goes
+# Meta-workflow will:
+# - Run each phase in a fresh subagent (TDD isolation on code phases)
+# - Gate every phase with an adversarial critic
+# - Checkpoint to <plan>.status.yaml for resumability
+# - Pause for manual sign-off in --manual mode
 ```
 
 ### Triaging PR Reviews

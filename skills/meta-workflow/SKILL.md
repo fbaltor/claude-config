@@ -16,7 +16,7 @@ Run an end-to-end multi-phase task without phase-by-phase babysitting. Each phas
 /meta-workflow <plan-path> [--auto|--manual] [--research <path>]
 ```
 
-- **plan-path** — a plan doc (typically from `/create_plan`) with numbered phases.
+- **plan-path** — a plan doc (typically from the `planner` sub-agent) with numbered phases.
 - **--research <path>** — a research doc (typically from `/research_codebase`). If omitted, use the first reference found in the plan.
 - **--auto** (default) — chain all phases until done or escalation.
 - **--manual** — pause after each phase's critic exits; await user go.
@@ -225,9 +225,8 @@ At dispatch time, the orchestrator reads the relevant template, substitutes phas
 ## Related skills
 
 - `/research_codebase` — produces the research doc. Invoke before this skill.
-- `/create_plan` — produces the plan doc. Invoke before this skill.
+- `planner` sub-agent — produces the plan doc (on Fable). Dispatch before this skill.
 - `/impact_analysis` — dispatch on-demand within a phase for refactor blast radius.
-- `/implement_plan` — human-gated sibling for simpler tasks; not called by this skill.
 - `/triage-reviews` — after the PR is opened; outside this skill's scope.
 
 ## Orchestrator pseudocode (reference)
