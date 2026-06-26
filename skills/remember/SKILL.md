@@ -43,11 +43,10 @@ If an existing note covers it → **update** it (`Edit`/`iwe update`). Otherwise
 - **External resources = `gf`-jumpable absolute paths in inline code** (e.g. `` `/home/fbaltor/quant/STATUS.md` ``). Never markdown-link a local file — `normalize` mangles it (collapses `file://`, strips `.md`, treats bare paths as note-keys). Only web URLs may be markdown links.
 - **End with provenance:** ingested → *"Ingested in full from `/abs/path` (settled; wiki canonical)"*; reference-only → *"Canonical source (jump with `gf`): `/abs/path` — summary; edit the source."*
 
-## 5. Normalize + verify
+## 5. Verify (read-only — safe under concurrency)
+These don't write, so they're safe while other sessions are editing. Run them BEFORE the commit. **Do not run `iwe normalize` here** — it's vault-wide (the CLI has no scope flag), so it runs exactly **once, inside the locked commit** (step 6), to avoid churning other sessions' in-flight notes on every pass.
 ```bash
 cd ~/memory
-iwe normalize && git diff --stat                       # canonicalize; review changes
-iwe normalize && git diff --quiet && echo "normalize idempotent OK"   # 2nd pass must be a no-op
 # link integrity — every [[key]] resolves (the `key`/`note-key`/`wikilink(s)` doc examples are expected):
 grep -rhoE '\[\[[a-z0-9][a-z0-9/_-]*(\|[^]]*)?\]\]' --include='*.md' . | sed -E 's/^\[\[//;s/(\|[^]]*)?\]\]$//' | sort -u \
   | while read -r k; do [ -f "$k.md" ] || echo "DANGLING: $k"; done
@@ -56,8 +55,17 @@ echo "reachable=$(iwe tree -f keys -d 12 | sort -u | grep -c .)  files=$(find . 
 ```
 Fix any real `DANGLING` (usually a wrong-folder key or a label ≠ title), and any orphan (link it from a hub).
 
-## 6. Commit
+## 6. Commit — SCOPED + LOCKED (shared vault)
+`~/memory` is written by **multiple concurrent `claude` sessions**. **Never `git add -A` / `git add .` / `git add -u` / `git commit -a` here** — they stage another live session's uncommitted notes into your commit (mis-attribution + the `iwe normalize` flip-flop). A PreToolUse hook (`pre-bash-memory-commit-guard.js`) blocks those forms in this vault; in other repos they're fine.
+
+Stage **only the notes you wrote/edited this turn**, by explicit path, and run normalize + commit under the vault lock so two sessions never interleave:
 ```bash
-cd ~/memory && git add -A && git commit -m "memory(<domain>): <what was remembered>"
+cd ~/memory
+NOTES="<domain>/<key>.md <hub>.md"   # every note you touched this turn (space-separated)
+flock -w 30 .git/cc-mem.lock sh -c "iwe normalize && git add -- $NOTES && git commit -m 'memory(<domain>): <what was remembered>' -- $NOTES"
 ```
+- `git commit -- <paths>` commits only those paths' working-tree contents — it ignores anything else any other session has dirtied or staged (that's why it's safer than `git add <paths>`, which still shares the index).
+- `flock -w 30 .git/cc-mem.lock` serializes normalize+commit across sessions (no two normalizes interleave; no `index.lock` collision). It waits ≤30s then fails — retry once or report; never loop.
+- `iwe normalize` stays vault-wide (no scope flag). Because you commit only `$NOTES`, its incidental reformatting of OTHER notes is left **uncommitted** for their authors — do **not** `git add` it. For a bulk re-canonicalization, run a standalone `iwe normalize` sweep only when no other session is active.
+
 One commit per remembered fact — keeps history reviewable and each write revertible.
