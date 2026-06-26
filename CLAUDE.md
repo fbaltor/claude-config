@@ -72,6 +72,8 @@ NEVER hand-write ASCII/Unicode box-drawing diagrams. Always use the mermaid-to-a
 
 The script replaces ```mermaid blocks with rendered ASCII and appends the original mermaid source as an appendix. Powered by the `beautiful-mermaid` npm package (installed in `/home/fbaltor/.claude/scripts/`). Supports: flowcharts, state diagrams, sequence diagrams, class diagrams, ER diagrams, XY charts.
 
+**ER caveat:** ER diagrams render poorly with 3+ entities — cardinality glyphs cramp and connector routing tangles (inherited `mermaid-ascii` layout weakness, not fixable by version bump). Keep ER diagrams to ≤2 entities, or fall back to a markdown table for complex schemas. The other 5 types are production-ready. (Verified 2026-06-14 against beautiful-mermaid 1.1.3, the current latest.)
+
 ## Model Tiering
 
 The main thread (orchestrator) runs on **Opus** — the default for every new session. It does intake, research, execution dispatch, review, and debugging. **Fable is reserved for one thing only: planning, via the `planner` sub-agent.** Reaching Fable any other way is off-pattern.
@@ -81,3 +83,4 @@ The main thread (orchestrator) runs on **Opus** — the default for every new se
   - The planner writes the plan to `~/.claude/plans/` and returns the path + summary, or a `NEEDS-CLARIFICATION` list. On clarification, get the answers from the user and re-dispatch.
 - **Everything else keeps its existing model matching** — execution, search/explore, review subagents are unchanged by this rule.
 - **Never** switch the session model to Fable (`/model fable`) or set `CLAUDE_CODE_SUBAGENT_MODEL` — both defeat the guardrail that Fable is reached only through the `planner` agent.
+- **Model-unavailable fallback:** if an assigned model is down/unavailable (e.g. Fable returns "currently unavailable"), fall back to the **next most capable** available model, never a less-capable one — so Fable → **Opus** (NOT Sonnet). Planning still routes through the `planner` sub-agent; only its model tier changes (pass `model: opus` to the Agent tool). Resume the pinned tier once it's back.
