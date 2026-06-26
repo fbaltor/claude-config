@@ -32,6 +32,16 @@
         "lastUpdated": "2026-05-29T15:34:07.571Z",
         "gitCommitSha": "515f7b8fb0d5299da62d649b1db35dce4331e1a4"
       }
+    ],
+    "pyright-lsp@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "/home/fbaltor/.claude/plugins/cache/claude-plugins-official/pyright-lsp/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-06-23T19:17:59.605Z",
+        "lastUpdated": "2026-06-23T19:17:59.605Z",
+        "gitCommitSha": "ba779ae1e68eef767348a42a6bd9255f5620974b"
+      }
     ]
   }
 }
