@@ -64,6 +64,28 @@ if [ -n "$EFFORT" ]; then
   EFFORT_PART=" | effort:${EFFORT}"
 fi
 
+# --- Session usage: spend (cost.total_cost_usd) + plan limits (rate_limits, same data as /usage) ---
+COST=$(echo "$input" | jq -r '.cost.total_cost_usd // 0')
+FIVEH=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty')
+WEEK=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty')
+
+USAGE_PART=$(printf ' | $%.2f' "$COST")
+if [ -n "$FIVEH" ]; then
+  FIVEH=$(printf '%.0f' "$FIVEH")
+  if [ "$FIVEH" -ge 80 ]; then
+    LIM_COLOR="\033[31m"  # red
+  elif [ "$FIVEH" -ge 50 ]; then
+    LIM_COLOR="\033[33m"  # yellow
+  else
+    LIM_COLOR="\033[32m"  # green
+  fi
+  USAGE_PART="${USAGE_PART} ${LIM_COLOR}5h:${FIVEH}%%${RESET}"
+  if [ -n "$WEEK" ]; then
+    WEEK=$(printf '%.0f' "$WEEK")
+    USAGE_PART="${USAGE_PART} wk:${WEEK}%%"
+  fi
+fi
+
 # --- Claude Code version: current (from stdin) + latest (cached, bg-refreshed) ---
 # The hot path must never block on the network. We read a cached "latest" and,
 # only if the cache is older than TTL, kick a detached refresh and use whatever
@@ -101,5 +123,5 @@ if [ -n "$CUR" ]; then
   fi
 fi
 
-# Format: user:cwd (branch) | context% | model [effort] [caveman] [cc-version]
-printf "${GREEN}$(whoami)${RESET}:${BLUE}${CWD}${GOLD}${GIT_BRANCH}${RESET} | ${PCT_COLOR}${PCT}%%${TOK_PART}${RESET} ctx | ${MODEL}${EFFORT_PART}${CAVE_PART}${CC_PART}"
+# Format: user:cwd (branch) | context% | $cost 5h% wk% | model [effort] [caveman] [cc-version]
+printf "${GREEN}$(whoami)${RESET}:${BLUE}${CWD}${GOLD}${GIT_BRANCH}${RESET} | ${PCT_COLOR}${PCT}%%${TOK_PART}${RESET} ctx${USAGE_PART} | ${MODEL}${EFFORT_PART}${CAVE_PART}${CC_PART}"
