@@ -8,6 +8,7 @@
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
+  "model": "claude-fable-5[1m]",
   "hooks": {
     "PreToolUse": [
       {
@@ -16,7 +17,7 @@
           {
             "type": "command",
             "command": "node \"/home/fbaltor/.claude/hooks/pre-bash-memory-commit-guard.js\"",
-            "timeout": 5
+            "timeout": 15
           }
         ]
       }

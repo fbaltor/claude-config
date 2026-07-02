@@ -50,13 +50,14 @@ cd ~/memory
 # link integrity — every [[key]] resolves (the `key`/`note-key`/`wikilink(s)` doc examples are expected):
 grep -rhoE '\[\[[a-z0-9][a-z0-9/_-]*(\|[^]]*)?\]\]' --include='*.md' . | sed -E 's/^\[\[//;s/(\|[^]]*)?\]\]$//' | sort -u \
   | while read -r k; do [ -f "$k.md" ] || echo "DANGLING: $k"; done
-# reachability — no orphans: reachable keys should equal note files:
-echo "reachable=$(iwe tree -f keys -d 12 | sort -u | grep -c .)  files=$(find . -name '*.md' -not -path './.git/*' | grep -vE 'pages/|journals/' | wc -l)"   # find (not git ls-files) so uncommitted new notes count
+# inclusion-orphans — every note needs an own-line hub link; orphans show as non-`index` TOP-LEVEL roots
+# (do NOT count-compare tree keys vs files — orphans appear as roots, so the counts always match):
+iwe tree -f keys -d 12 | grep -v $'^\t' | grep -vx 'index'   # any output = orphan keys
 ```
-Fix any real `DANGLING` (usually a wrong-folder key or a label ≠ title), and any orphan (link it from a hub).
+Fix any real `DANGLING` (usually a wrong-folder key or a label ≠ title), and any orphan (link it from a hub). These checks are also **hook-enforced at commit time**: `pre-bash-memory-commit-guard.js` blocks a vault `git commit` on any dangling link (vault-wide) or on committing an orphan note (scoped to the commit's paths) — so a skipped verify pass fails loudly instead of landing broken graph state.
 
 ## 6. Commit — SCOPED + LOCKED (shared vault)
-`~/memory` is written by **multiple concurrent `claude` sessions**. **Never `git add -A` / `git add .` / `git add -u` / `git commit -a` here** — they stage another live session's uncommitted notes into your commit (mis-attribution + the `iwe normalize` flip-flop). A PreToolUse hook (`pre-bash-memory-commit-guard.js`) blocks those forms in this vault; in other repos they're fine.
+`~/memory` is written by **multiple concurrent `claude` sessions**. **Never `git add -A` / `git add .` / `git add -u` / `git commit -a` here** — they stage another live session's uncommitted notes into your commit (mis-attribution + the `iwe normalize` flip-flop). A PreToolUse hook (`pre-bash-memory-commit-guard.js`) blocks those forms in this vault (and gates the commit on the step-5 integrity checks); in other repos they're fine.
 
 Stage **only the notes you wrote/edited this turn**, by explicit path, and run normalize + commit under the vault lock so two sessions never interleave:
 ```bash

@@ -23,6 +23,7 @@ Hook scripts live in `/home/fbaltor/.claude/hooks/` and `/home/fbaltor/.claude/s
 
 | Event | Script | Purpose |
 |---|---|---|
+| PreToolUse (`Bash`) | `pre-bash-memory-commit-guard.js` (node) | In `~/memory` only: blocks vault-sweeping staging (`git add -A\|.\|-u`, `commit -a`) AND gates `git commit` on graph integrity — dangling wiki links (vault-wide) and inclusion-orphans (scoped to the committed notes, so other sessions' WIP never blocks). Fail-open on its own errors. |
 | SessionStart | `session-start-iwe-memory.ts` (tsx) | Injects the `~/memory` iwe map + recall protocol when `CC_MEM=map` (default sessions — see Memory) |
 | PostToolUse (`mcp__iwe-memory__iwe_*` writes) | `post-memory-update-transparency.ts` (tsx) | Emits a user-visible `📝 Long-term memory (~/memory) updated — …` line on each graph write (create/update/extract/rename/delete/inline/squash) — the iwe analog of native "Updating memory". Silent on dry-run/list/interrupted. |
 | UserPromptSubmit | `user-prompt-memory-nudge.js` (node) | On a durable-fact signal in the prompt (preference / correction / standing instruction), injects a one-line reminder to consider the `remember` skill. Recall-tuned regex; gated to `CC_MEM` map/primer (fail-open if unset); raises salience only — does **not** force a write. |
