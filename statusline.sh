@@ -69,6 +69,35 @@ COST=$(echo "$input" | jq -r '.cost.total_cost_usd // 0')
 FIVEH=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty')
 WEEK=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty')
 
+# Fresh session: stdin has no rate_limits until the first API response lands.
+# Fill the gap by fetching the OAuth usage endpoint (same data as /usage) in a
+# detached background job — the hot path never blocks on the network. The cache
+# file is only a render-to-render handoff (60s debounce), not a persistence
+# layer: stdin wins as soon as it carries rate_limits.
+if [ -z "$FIVEH" ]; then
+  USAGE_CACHE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/.usage-limits"
+  USAGE_TTL=60
+  umtime=$(stat -c %Y "$USAGE_CACHE" 2>/dev/null || echo 0)
+  if [ $(( $(date +%s) - umtime )) -gt "$USAGE_TTL" ]; then
+    touch "$USAGE_CACHE" 2>/dev/null   # debounce before launching the fetch
+    (
+      tok=$(jq -r '.claudeAiOauth.accessToken // empty' \
+            "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/.credentials.json" 2>/dev/null)
+      [ -n "$tok" ] || exit 0
+      u=$(curl -fsS --max-time 4 \
+            -H "Authorization: Bearer $tok" \
+            -H "anthropic-beta: oauth-2025-04-20" \
+            https://api.anthropic.com/api/oauth/usage 2>/dev/null \
+          | jq -c '{five_hour: .five_hour.utilization, seven_day: .seven_day.utilization}' 2>/dev/null)
+      [ -n "$u" ] && printf '%s' "$u" > "$USAGE_CACHE"
+    ) </dev/null >/dev/null 2>&1 &
+  fi
+  if [ -s "$USAGE_CACHE" ]; then
+    FIVEH=$(jq -r '.five_hour // empty' "$USAGE_CACHE" 2>/dev/null)
+    WEEK=$(jq -r '.seven_day // empty' "$USAGE_CACHE" 2>/dev/null)
+  fi
+fi
+
 USAGE_PART=$(printf ' | $%.2f' "$COST")
 if [ -n "$FIVEH" ]; then
   FIVEH=$(printf '%.0f' "$FIVEH")
