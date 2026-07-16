@@ -155,7 +155,9 @@ function main(): void {
 
   // The CLI can't open a fork idle — a prompt is mandatory (it becomes the
   // fork's first turn). When the user gives none (undefined, or an empty/
-  // whitespace string from a bare `"$0"` expansion), fall back to an innocuous
+  // whitespace string from a bare `"$ARGUMENTS"` expansion — never `$0`, which
+  // the shell expands to its own argv[0], e.g. /run/current-system/sw/bin/bash),
+  // fall back to an innocuous
   // no-op instruction: the forked Claude acknowledges and waits, leaving the
   // window open and interactive at the branch point without doing any work.
   const prompt = args.prompt?.trim() ? args.prompt : NOOP_PROMPT;

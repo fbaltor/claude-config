@@ -6,7 +6,7 @@ argument-hint: "\"<opening prompt>\""
 allowed-tools: Bash(npx tsx:*)
 ---
 
-!`npx tsx /home/fbaltor/.claude/skills/branch-window/branch.ts "$0"`
+!`npx tsx /home/fbaltor/.claude/skills/branch-window/branch.ts "$ARGUMENTS"`
 
 This is a fire-and-forget side effect: the command above already spawned the
 forked window (or printed a usage error). Do not analyze, comment, test, or take
