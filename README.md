@@ -11,12 +11,14 @@ Personal Claude Code configuration: custom skills, sub-agents, scripts, and inte
 ```
 ~/.claude/
 ├── skills/          # Custom slash-command skills; dev-pipeline/ is a skills-dir plugin (the whole dev workflow)
-├── scripts/         # TypeScript utilities (Linear, GitHub)
+├── hooks/           # Global hook scripts (see Hooks)
+├── scripts/         # TypeScript utilities (Linear, GitHub, memory, diagrams) — pnpm workspace
 ├── plugins/         # Installed Claude Code plugins
 ├── plans/           # Implementation plans (git add -f to track)
 ├── research/        # Investigation documents (git add -f to track)
 ├── CLAUDE.md        # Global agent instructions (auto-loaded)
-├── settings.json    # Permissions, plugins, and feature flags
+├── settings.json    # Permissions, plugins, hooks, and feature flags
+├── keybindings.json # Custom keyboard shortcuts
 └── statusline.sh    # Context/cost display for the Claude Code UI
 ```
 
@@ -31,6 +33,8 @@ Skills are invoked via `/skill-name` inside Claude Code. Each lives in `skills/<
 | **Linear** | `/linear` | Fetch Linear issues/projects. Auto-detects issue from git branch (e.g. `JUMP-123`). |
 | **Linear Push Doc** | `/linear-push-doc` | Sync a local markdown file to a Linear document. |
 | **Triage Reviews** | `/triage-reviews` | Classify GitHub PR review comments as Major / Minor / False Positive. |
+| **Recall** | `/recall` | Page facts in from the long-term memory graph (`~/memory`) on demand. |
+| **Remember** | `/remember` | Persist a durable fact to the memory graph, then normalize, verify, and commit. |
 
 (Not exhaustive — see `skills/` for the full set.)
 
@@ -47,19 +51,47 @@ Pipeline agents live in `skills/dev-pipeline/agents/` and are dispatched as `dev
 | **dev-pipeline:coverage-verifier** | inherit | Read-only audit: classify each behavior bullet's test coverage as full/partial/missing. |
 | **dev-pipeline:critic** | inherit | Adversarial cold review gating phase completion; severity-tagged findings, no praise. |
 
+## Long-Term Memory (iwe)
+
+Long-term memory is an [iwe](https://iwe.md) note-graph at `~/memory` (plain linked Markdown) — **not** Claude Code's native auto-memory.
+
+- The `claude` shell wrapper (defined in the NixOS config) makes this the default for every session: it sets `CC_MEM=map`, disables native auto-memory at runtime (`CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`), and loads the **iwe-memory MCP server** from `scripts/memory/iwe-mcp.json` (launcher: `scripts/memory/iwec-memory.sh`). `claude --native` opts out: native auto-memory, no iwe.
+- On session start, a hook injects the graph's `index` map plus a recall protocol. Facts are paged in on demand via the `recall` skill and the `iwe_*` MCP tools — never preloaded.
+- Writes go through the `remember` skill; a PostToolUse hook prints a visible `📝 Long-term memory updated` line on every graph write.
+- `autoMemoryEnabled: true` stays in `settings.json` on purpose so `--native` sessions still get native memory.
+
+The system's own design doc lives in the library (`pkm/iwe-as-cc-memory`); note-writing conventions in `~/memory/conventions.md`.
+
+## Hooks
+
+Global hooks are registered in `settings.json`; scripts live in `hooks/` (plus the memory hook in `scripts/memory/`). TS hooks run via `tsx` and share types + a stdin reader from `scripts/lib/hooks.ts`; hot-path hooks (fired on every prompt or Bash call) are plain ESM `.js` run via `node` for fast startup.
+
+| Event | Script | Purpose |
+|-------|--------|---------|
+| PreToolUse (Bash) | `pre-bash-memory-commit-guard.js` | In `~/memory` only: blocks vault-sweeping staging and gates `git commit` on graph integrity (dangling wiki links, inclusion orphans). |
+| SessionStart | `scripts/memory/session-start-iwe-memory.ts` | Injects the iwe memory map + recall protocol (`CC_MEM=map` sessions). |
+| PostToolUse (iwe writes) | `post-memory-update-transparency.ts` | Emits a user-visible line on each memory-graph write. |
+| UserPromptSubmit | `user-prompt-memory-nudge.js` | Nudges the `remember` skill when a prompt carries a durable-fact signal. |
+
+Error convention: PostToolUse hooks exit `1` on unexpected errors (failures stay visible); PreToolUse hooks exit `0` (never block a tool by accident — exit `2` is reserved for intentional blocks). Errors log to `hooks/hook-debug.log`.
+
 ## Scripts
 
-TypeScript utilities in `scripts/`, managed with npm. Run via `npx tsx <script>`.
+TypeScript utilities in `scripts/`, managed as a **pnpm workspace**. Run via `npx tsx <script>`; the review scripts run via `pnpm --dir ~/.claude/scripts/reviews run <script> -- <args>`.
 
 - **`linear-fetch.ts`** — Fetch Linear issues and projects via the Linear SDK
 - **`linear-doc-sync.ts`** — Bi-directional markdown-to-Linear document sync
 - **`reviews/`** — GitHub PR review fetching, status checking, and YAML output
+- **`mermaid-to-ascii.ts`** — Render ```mermaid blocks in a markdown file to ASCII diagrams
+- **`memory/`** — iwe memory integration: SessionStart hook, MCP server config + launcher
+- **`lib/`** — Shared hook types and `readHookStdin()`
+- **`offscreen-capture/`** — Screenshot GUI apps on a headless sway compositor
 
 ### Setup
 
 ```bash
 cd ~/.claude/scripts
-npm install
+pnpm install
 ```
 
 ### Environment Variables
@@ -81,8 +113,9 @@ cp ~/.claude/scripts/.env.example ~/.claude/scripts/.env
 
 ## Integrations (MCP)
 
-Configured in `settings.json` via [Model Context Protocol](https://modelcontextprotocol.io/) servers:
+[Model Context Protocol](https://modelcontextprotocol.io/) servers:
 
+- **iwe-memory** — The `~/memory` knowledge graph (`iwe_find`, `iwe_retrieve`, …). Config in `scripts/memory/iwe-mcp.json`, loaded by the `claude` wrapper (see Long-Term Memory).
 - **Linear** — Full read/write (no delete)
 - **Notion** — Read/write/create/update (no delete)
 
@@ -103,7 +136,8 @@ Naming convention: `YYYY-MM-DD-kebab-case-description.md`
 
 - **Permissions** — Which tools Claude Code can use without prompting
 - **Plugins** — Marketplace: `code-simplifier`, `caveman`, `lua-lsp`, `pyright-lsp`; local skills-dir: `dev-pipeline`
-- **Features** — Extended thinking enabled, high effort level, auto-memory on
+- **Hooks** — Global hook registrations (see Hooks)
+- **Features** — Extended thinking enabled; `autoMemoryEnabled: true`, but the `claude` wrapper disables native memory at runtime in favor of iwe — it only takes effect in `claude --native` sessions
 - **Status line** — Custom bash script showing context usage %, cost, and model
 
 `settings.local.json` holds machine-specific overrides (not intended for sharing).
@@ -245,7 +279,7 @@ If you want to adopt parts of this configuration:
 
 1. **Fork** this repo
 2. Clone into your own `~/.claude/` directory (back up your existing config first)
-3. Run `cd ~/.claude/scripts && npm install` for script dependencies
+3. Run `cd ~/.claude/scripts && pnpm install` for script dependencies
 4. Set up Linear API keys if using Linear integration
 5. Customize `CLAUDE.md` and `settings.json` for your own preferences
 
@@ -262,7 +296,7 @@ This repo uses several Claude Code extension features. Here are the official doc
 | **Sub-agents** | `skills/dev-pipeline/agents/` | [Custom subagents](https://code.claude.com/docs/en/sub-agents) — Agent definitions, tools, model selection |
 | **Memory & CLAUDE.md** | `CLAUDE.md` | [Memory system](https://code.claude.com/docs/en/memory) — Global/project instructions, auto-memory, `MEMORY.md` |
 | **Settings** | `settings.json` | [Configuration](https://code.claude.com/docs/en/settings) — Permissions, features, scopes |
-| **MCP Servers** | `settings.json` | [MCP integrations](https://code.claude.com/docs/en/mcp) — Connecting to Linear, Notion, etc. |
+| **MCP Servers** | `scripts/memory/iwe-mcp.json` | [MCP integrations](https://code.claude.com/docs/en/mcp) — Connecting to Linear, Notion, etc. |
 | **Plugins** | `plugins/` | [Plugin system](https://code.claude.com/docs/en/plugins) — Bundling skills, agents, and hooks |
 | **Status Line** | `statusline.sh` | [Custom status bar](https://code.claude.com/docs/en/statusline) — Context usage, cost, model display |
-| **Hooks** | `settings.json` | [Hooks guide](https://code.claude.com/docs/en/hooks-guide) — Pre/post tool execution automation |
+| **Hooks** | `hooks/`, `settings.json` | [Hooks guide](https://code.claude.com/docs/en/hooks-guide) — Pre/post tool execution automation |
