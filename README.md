@@ -12,7 +12,7 @@ Personal Claude Code configuration: custom skills, sub-agents, scripts, and inte
 ~/.claude/
 ├── skills/          # Custom slash-command skills; dev-pipeline/ is a skills-dir plugin (the whole dev workflow)
 ├── hooks/           # Global hook scripts (see Hooks)
-├── scripts/         # TypeScript utilities (Linear, GitHub, memory, diagrams) — pnpm workspace
+├── scripts/         # TypeScript utilities (memory, diagrams, capture) — pnpm workspace
 ├── plugins/         # Installed Claude Code plugins
 ├── plans/           # Implementation plans (git add -f to track)
 ├── research/        # Investigation documents (git add -f to track)
@@ -30,9 +30,6 @@ Skills are invoked via `/skill-name` inside Claude Code. Each lives in `skills/<
 |-------|---------|-------------|
 | **Research Codebase** | `/dev-pipeline:research_codebase` | Deep codebase investigation. Spawns parallel sub-agents. Saves to `~/.claude/research/`. |
 | **Impact Analysis** | `/dev-pipeline:impact_analysis` | Find all files and lines affected by a proposed change (read-only). |
-| **Linear** | `/linear` | Fetch Linear issues/projects. Auto-detects issue from git branch (e.g. `JUMP-123`). |
-| **Linear Push Doc** | `/linear-push-doc` | Sync a local markdown file to a Linear document. |
-| **Triage Reviews** | `/triage-reviews` | Classify GitHub PR review comments as Major / Minor / False Positive. |
 | **Recall** | `/recall` | Page facts in from the long-term memory graph (`~/memory`) on demand. |
 | **Remember** | `/remember` | Persist a durable fact to the memory graph, then normalize, verify, and commit. |
 
@@ -77,11 +74,8 @@ Error convention: PostToolUse hooks exit `1` on unexpected errors (failures stay
 
 ## Scripts
 
-TypeScript utilities in `scripts/`, managed as a **pnpm workspace**. Run via `npx tsx <script>`; the review scripts run via `pnpm --dir ~/.claude/scripts/reviews run <script> -- <args>`.
+TypeScript utilities in `scripts/`, managed as a **pnpm workspace**. Run via `npx tsx <script>`.
 
-- **`linear-fetch.ts`** — Fetch Linear issues and projects via the Linear SDK
-- **`linear-doc-sync.ts`** — Bi-directional markdown-to-Linear document sync
-- **`reviews/`** — GitHub PR review fetching, status checking, and YAML output
 - **`mermaid-to-ascii.ts`** — Render ```mermaid blocks in a markdown file to ASCII diagrams
 - **`memory/`** — iwe memory integration: SessionStart hook, MCP server config + launcher
 - **`lib/`** — Shared hook types and `readHookStdin()`
@@ -94,30 +88,11 @@ cd ~/.claude/scripts
 pnpm install
 ```
 
-### Environment Variables
-
-The scripts require API keys set as environment variables. Copy the example file and fill in your keys:
-
-```bash
-cp ~/.claude/scripts/.env.example ~/.claude/scripts/.env
-```
-
-| Variable | Used By | Purpose | Required? |
-|----------|---------|---------|-----------|
-| `LINEAR_API_KEY` | Linear scripts | General Linear API authentication | Yes, if specific keys below are not set |
-| `LINEAR_API_KEY_READ` | Linear scripts | Read-only Linear API access (fetch issues, pull docs) | No — falls back to `LINEAR_API_KEY` |
-| `LINEAR_API_KEY_ALL` | Linear scripts | Read+write Linear API access (push docs) | No — falls back to `LINEAR_API_KEY` |
-| `GITHUB_TOKEN` | Review scripts | GitHub API authentication (Octokit) | No — falls back to `gh auth token` |
-
-> **Note:** The Linear and Notion **MCP integrations** (used by Claude Code directly) authenticate via OAuth through the plugin system — they do not need environment variables.
-
 ## Integrations (MCP)
 
 [Model Context Protocol](https://modelcontextprotocol.io/) servers:
 
 - **iwe-memory** — The `~/memory` knowledge graph (`iwe_find`, `iwe_retrieve`, …). Config in `scripts/memory/iwe-mcp.json`, loaded by the `claude` wrapper (see Long-Term Memory).
-- **Linear** — Full read/write (no delete)
-- **Notion** — Read/write/create/update (no delete)
 
 ## Plans and Research
 
@@ -167,82 +142,6 @@ Plan: add cursor-based pagination to all listing API endpoints
 #    dev-pipeline:critic → cold, severity-tagged gate before "done"
 ```
 
-### Triaging PR Reviews
-
-Use `/triage-reviews` to classify review comments and focus on what matters.
-
-```
-# Triage reviews on a specific PR
-/triage-reviews --pr 456 --repo org/repo
-
-# Auto-detect PR from current branch (defaults to Jumpstart-Immigration/jumpstart)
-/triage-reviews
-
-# Wait for bot reviews (CodeRabbit, Copilot) to finish before triaging
-/triage-reviews --wait --pr 456
-
-# Claude will:
-# - Fetch all review comments (human + bot)
-# - Read the actual source code at each commented location
-# - Classify each as Major / Minor / False Positive
-# - Present outdated comments separately
-# - Ask which items you want to tackle
-```
-
-Output looks like:
-
-```
-## PR Review Triage
-
-**PR #456**: Add user profile endpoint
-**Reviewers**: @alice, @coderabbitai[bot]
-**Stats**: 2 major | 3 minor | 1 false positive | 2 outdated
-
-### Major (2)
-1. **Missing null check on user lookup** — @alice
-   `src/handlers/profile.ts:42` · [link](...)
-   > What happens if the user ID doesn't exist?
-
-   **Assessment**: Confirmed — no guard before accessing user properties.
-...
-```
-
-### Syncing Documents with Linear
-
-Use `/linear-push-doc` for one-way syncs from local markdown to Linear documents.
-
-```
-# A Linear-linked doc carries its document ID in frontmatter:
-# ---
-# linear_document_id: abc123-def456
-# linear_document_title: Architecture Overview
-# linear_sync_hash: 5a8f5572fdf9
-# ---
-
-# After editing locally, push changes back to Linear
-/linear-push-doc docs/architecture.md
-
-# Push ALL Linear-linked docs in the repo at once
-/linear-push-doc
-```
-
-The document ID lives in YAML frontmatter, so pushes don't need an `--id`. A `linear_sync_hash` is written on each push — the pre-PR hook uses it to verify docs are synced before creating a PR (only docs changed on the branch are checked).
-
-### Fetching Linear Issues
-
-Use `/linear` to pull issue or project context into your Claude Code session.
-
-```
-# Auto-detect issue from current git branch (parses JUMP-28, GOJ-12, etc.)
-/linear --fetch-issue
-
-# Fetch a specific issue
-/linear --fetch-issue JUMP-42
-
-# Fetch a project overview with all its issues and docs
-/linear --fetch-project "API Redesign"
-```
-
 ### Investigating a Codebase
 
 Use `/dev-pipeline:research_codebase` for deep, documented investigations.
@@ -280,8 +179,7 @@ If you want to adopt parts of this configuration:
 1. **Fork** this repo
 2. Clone into your own `~/.claude/` directory (back up your existing config first)
 3. Run `cd ~/.claude/scripts && pnpm install` for script dependencies
-4. Set up Linear API keys if using Linear integration
-5. Customize `CLAUDE.md` and `settings.json` for your own preferences
+4. Customize `CLAUDE.md` and `settings.json` for your own preferences
 
 > **Important:** `CLAUDE.md` is auto-loaded into every Claude Code conversation as system instructions. Keep it focused and concise — bloated instructions consume context and degrade agent performance.
 
@@ -296,7 +194,7 @@ This repo uses several Claude Code extension features. Here are the official doc
 | **Sub-agents** | `skills/dev-pipeline/agents/` | [Custom subagents](https://code.claude.com/docs/en/sub-agents) — Agent definitions, tools, model selection |
 | **Memory & CLAUDE.md** | `CLAUDE.md` | [Memory system](https://code.claude.com/docs/en/memory) — Global/project instructions, auto-memory, `MEMORY.md` |
 | **Settings** | `settings.json` | [Configuration](https://code.claude.com/docs/en/settings) — Permissions, features, scopes |
-| **MCP Servers** | `scripts/memory/iwe-mcp.json` | [MCP integrations](https://code.claude.com/docs/en/mcp) — Connecting to Linear, Notion, etc. |
+| **MCP Servers** | `scripts/memory/iwe-mcp.json` | [MCP integrations](https://code.claude.com/docs/en/mcp) — Connecting external tool servers |
 | **Plugins** | `plugins/` | [Plugin system](https://code.claude.com/docs/en/plugins) — Bundling skills, agents, and hooks |
 | **Status Line** | `statusline.sh` | [Custom status bar](https://code.claude.com/docs/en/statusline) — Context usage, cost, model display |
 | **Hooks** | `hooks/`, `settings.json` | [Hooks guide](https://code.claude.com/docs/en/hooks-guide) — Pre/post tool execution automation |

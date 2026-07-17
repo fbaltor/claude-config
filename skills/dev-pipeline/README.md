@@ -43,7 +43,7 @@ Building the critic brief (orchestrator's job):
 
 **5. Commit per phase** — new commits at phase exit (no amend, no force-push, no `--no-verify`, no `--no-gpg-sign`).
 
-**6. Downstream** — PRs go up draft + self-assigned; review triage via `/triage-reviews` (outside this pipeline).
+**6. Downstream** — PRs go up draft + self-assigned.
 
 ## Input partitioning (the kernel)
 

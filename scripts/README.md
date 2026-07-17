@@ -4,145 +4,56 @@ Personal scripts used by Claude Code skills and hooks. These live outside any pr
 
 ## Setup
 
-This directory has its own `package.json` and `node_modules/`. Sub-packages (like `reviews/`) have their own as well. After cloning or on a new machine:
+This directory is a pnpm workspace with its own `package.json` and `node_modules/`. After cloning or on a new machine:
 
 ```bash
 cd ~/.claude/scripts
 pnpm install
-cd reviews && pnpm install
 ```
 
 ## Dependency management
 
-Scripts here import npm packages (e.g. `@linear/sdk`). Dependencies are declared in `package.json` and resolved from the local `node_modules/`.
+Scripts here import npm packages (e.g. `beautiful-mermaid`). Dependencies are declared in `package.json` and resolved from the local `node_modules/`.
 
 **Do NOT install these dependencies in project repos.** The skill invocations use absolute paths (`$HOME/.claude/scripts/...`), so Node resolution finds `~/.claude/scripts/node_modules/` regardless of the project's working directory.
 
-Sub-packages (like `reviews/`) have their own `package.json` and `node_modules/`. The parent `package.json` delegates to them via `pnpm --dir`.
+Shared dev tooling versions (`tsx`, `@types/node`, `typescript`) are pinned once in the `catalog:` section of `pnpm-workspace.yaml`.
 
 To add a new dependency:
 
 ```bash
-# Root-level scripts (e.g. linear-fetch.ts)
 cd ~/.claude/scripts
 pnpm add <package>
-
-# Sub-packages (e.g. reviews/)
-cd ~/.claude/scripts/reviews
-pnpm add <package>
 ```
-
-## Sub-packages
-
-### `reviews/` — `pr-review-fetcher`
-
-Self-contained package for fetching and analyzing PR review comments from GitHub. Structured as a future-publishable NPM package with its own `package.json`, `tsconfig.json`, and dependencies.
-
-**Setup:**
-
-```bash
-cd ~/.claude/scripts/reviews
-pnpm install
-```
-
-**Structure:**
-
-- `src/` — library code (importable API)
-  - `src/index.ts` — barrel export (public API)
-  - `src/fetch-reviews.ts` — fetches reviews, threads, comments via GitHub GraphQL
-  - `src/check-reviews.ts` — checks AI review bot status, polling, re-runs
-  - `src/check-reviews-renderer.ts` — terminal/plain text display layer
-  - `src/shared.ts` — shared types and utilities
-  - `src/cli-utils.ts` — CLI argument parsing and GitHub token management
-  - `src/queries/` — GraphQL query documents
-  - `src/yaml-builder/` — structured YAML output with bot-specific parsers
-- `src/cli/` — CLI entry points
-  - `src/cli/fetch-reviews.ts` — fetch and save PR review comments
-  - `src/cli/check-reviews.ts` — check AI review bot status
-- `__tests__/` — test suite (103 tests, Node.js native test runner)
-
-**Usage (direct):**
-
-```bash
-cd ~/.claude/scripts/reviews
-pnpm run fetch-reviews -- --pr 39
-pnpm run check-reviews -- --pr 39 --wait
-pnpm test
-```
-
-**Usage (from parent):**
-
-```bash
-cd ~/.claude/scripts
-pnpm run fetch-reviews -- --pr 39
-pnpm run test:reviews
-```
-
-**Invoked by:** `.claude/skills/triage-reviews/SKILL.md` in any project repo, via:
-```
-npx tsx "$HOME/.claude/scripts/reviews/src/cli/fetch-reviews.ts" --pr PR --repo OWNER/REPO
-```
-
-**Requires:** `GITHUB_TOKEN` env var or `gh` CLI authenticated with repo access.
-
-## Shared library
-
-### `lib/linear.ts`
-
-Shared Linear utilities imported by scripts and hooks. Contains:
-
-- **Client:** `getClient("read" | "write")` — creates a `LinearClient` from `LINEAR_API_KEY_READ`/`LINEAR_API_KEY_ALL` env vars
-- **Frontmatter:** `parseFrontmatter()`, `buildFrontmatter()` — YAML frontmatter parsing for Linear-linked markdown files
-- **Sync banner:** `buildSyncBanner()`, `stripSyncBanner()` — the "source of truth" banner prepended to Linear documents
-- **Sync hash:** `computeSyncHash(body)` — truncated SHA-256 of body content, stored as `linear_sync_hash` in frontmatter on push/pull
-- **Git:** `getCurrentBranch()`, `parseIssueId(branch)`, `getChangedFilesOnBranch(cwd)` — branch name parsing and diff detection
-- **Doc sync:** `findLinearLinkedDocs(cwd)`, `checkDocSync(cwd, doc)` — find Linear-linked docs and compare hash (no API call)
-- **Issue status:** `updateIssueStatus(identifier, statusName)` — update a Linear issue's workflow state
 
 ## Scripts
 
-### `linear-fetch.ts`
+### `mermaid-to-ascii.ts`
 
-Fetches Linear issues and projects for the `/linear` Claude Code skill.
+Renders ```mermaid blocks in a markdown file to ASCII diagrams (powered by `beautiful-mermaid`). Preview by default; `--write` converts in-place and appends the mermaid source as an appendix.
 
-**Requires:** `LINEAR_API_KEY` environment variable.
-
-**Usage (via skill):**
-- `/linear --fetch-issue` -- fetches issue from current branch name (parses `JUMP-28` or `GOJ-12` patterns)
-- `/linear --fetch-issue JUMP-28` -- fetches a specific issue
-- `/linear --fetch-project <name>` -- fetches project overview with issues and docs
-
-**Invoked by:** `~/.claude/skills/linear/SKILL.md`, via:
-```
-!`npx tsx "$HOME/.claude/scripts/linear-fetch.ts" $ARGUMENTS`
+```bash
+npx tsx ~/.claude/scripts/mermaid-to-ascii.ts <file.md> [--write]
 ```
 
-### `linear-doc-sync.ts`
+### `memory/`
 
-Syncs markdown files with Linear documents (bidirectional, one direction at a time).
+The iwe long-term-memory integration:
 
-**Requires:** `LINEAR_API_KEY_ALL` (push) or `LINEAR_API_KEY_READ` (pull) environment variable.
+- `session-start-iwe-memory.ts` — SessionStart hook; injects the `~/memory` map + recall protocol when `CC_MEM=map`
+- `iwe-mcp.json` — MCP server config for `iwe-memory`, loaded by the `claude` wrapper
+- `iwec-memory.sh` — MCP launcher; `cd`s into `~/memory` before exec'ing `iwec` (it resolves the graph from the CWD)
 
-**Usage (via skill):**
-- `/linear-push-doc` -- push all Linear-linked docs in the repo
-- `/linear-push-doc <file_path>` -- push a single file to its linked Linear document
-- `/linear-pull-doc <file_path>` -- pull Linear document into local file
-- `/linear-pull-doc <file_path> --id <doc_id>` -- initial pull with explicit document ID
+### `offscreen-capture/`
 
-Files must have YAML frontmatter with `linear_document_id: <uuid>` to link to a Linear document. On push/pull, a `linear_sync_hash` is written to frontmatter to track sync state locally.
+Screenshot GUI apps on a headless sway compositor without touching the visible desktop. Used by the `offscreen-capture` skill.
 
-**Invoked by:** `~/.claude/skills/linear-push-doc/SKILL.md` and `~/.claude/skills/linear-pull-doc/SKILL.md`.
+## Shared library
+
+### `lib/hooks.ts`
+
+Shared types + `readHookStdin()` for TypeScript hooks. Hot-path hooks (every prompt / Bash call) are plain ESM `.js` run via `node` and deliberately do not import this — see the **Hooks** section of `~/.claude/CLAUDE.md`.
 
 ## Hooks
 
 Hook scripts live in `~/.claude/hooks/` and run via Claude Code's hook system (configured in `~/.claude/settings.json`). Current memory hooks: `post-memory-update-transparency.ts` (announces iwe graph writes with a `📝` line) and `user-prompt-memory-nudge.js` (nudges to persist durable facts). See the **Hooks** section of `~/.claude/CLAUDE.md` for the authoritative table.
-
-## Issues resolved
-
-### 2026-03-19: Linear skill setup
-
-1. **`$CLAUDE_PROJECT_DIR` not available** -- The skill originally used `$CLAUDE_PROJECT_DIR/.claude/scripts/linear-fetch.ts` but that env var resolves to empty in skill shell commands. Fixed by using `$HOME/.claude/scripts/` with an absolute path.
-
-2. **`@linear/sdk` not installed** -- The script was initially placed inside a project repo's `.claude/scripts/` with no corresponding dependency. Installing it in the project's `package.json` is wrong (pollutes the repo). Fixed by giving `~/.claude/scripts/` its own `package.json` with `@linear/sdk`.
-
-3. **`identifier` filter not supported in `@linear/sdk` v78** -- `client.issues({ filter: { identifier: { eq: "JUMP-28" } } })` throws a GraphQL error because `identifier` is not a valid `IssueFilter` field. Fixed by splitting the identifier into team key + number and filtering with `{ team: { key: { eq: "JUMP" } }, number: { eq: 28 } }`.

@@ -11,7 +11,6 @@
 !scripts/
 !scripts/**
 scripts/.env
-scripts/reviews/.pr-reviews/
 
 node_modules
 

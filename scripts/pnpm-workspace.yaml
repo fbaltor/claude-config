@@ -1,8 +1,4 @@
-packages:
-  - 'reviews'
-
-allowBuilds:
-  esbuild: set this to true or false
+packages: []
 
 # Single source of truth for shared dev tooling. Reference from any
 # package.json with "<dep>": "catalog:". Bump the version here once and
