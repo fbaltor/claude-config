@@ -51,10 +51,9 @@ When a task involves multiple discrete deliverables (e.g., audit → plan → is
 
 ## Testing
 
-- Design test specifications (behavior-focused, GIVEN/WHEN/THEN) **before** writing test code or implementation.
-- When implementing a refactor or fix, propose the test spec as the first step.
-- Consider using a separate agent to write tests to avoid contamination — the implementer should not see the spec, only the test file + interface. This prevents tests from being biased by knowledge of the implementation.
-- Be comprehensive about edge cases and generate realistic test data.
+- Design test specifications (behavior-focused, GIVEN/WHEN/THEN) **before** writing test code or implementation. For a refactor or fix, the test spec is the first artifact.
+- Tests for planned code work are written by the separate `dev-pipeline:test-writer` agent, never by the implementer — the test author must not see implementation notes, and the implementer must not weaken tests to get green. Coverage is audited by `dev-pipeline:coverage-verifier`; completion is gated by `dev-pipeline:critic`.
+- Full pipeline and role contracts: `~/.claude/skills/dev-pipeline/README.md`.
 
 ## Pull Requests
 
@@ -77,11 +76,9 @@ The script replaces ```mermaid blocks with rendered ASCII and appends the origin
 
 ## Model Tiering
 
-The main thread (orchestrator) runs on **Opus** — the default for every new session. It does intake, research, execution dispatch, review, and debugging. **Fable is reserved for one thing only: planning, via the `planner` sub-agent.** Reaching Fable any other way is off-pattern.
+The session model is the **user's** runtime choice — set via `/model`, which persists to `settings.json` (Opus is the usual default; the user deliberately runs Fable sessions at times). The structural division below holds regardless of session model.
 
-- **Planning** → dispatch the `planner` sub-agent (`~/.claude/agents/planner.md`, pinned `model: fable`) for any non-trivial change: multiple files, uncertain approach, or unfamiliar code. If you could describe the diff in one sentence, skip planning and just do it.
-  - The sub-agent **cannot ask the user questions or spawn its own sub-agents.** So FIRST, in the main thread: ask the user any clarifying questions (`AskUserQuestion`), and gather context (dispatch `Explore`/`cavecrew-investigator` for the broad search). THEN dispatch `planner` with a complete brief — the goal, the answered clarifications, and pointers to the key files/research.
-  - The planner writes the plan to `~/.claude/plans/` and returns the path + summary, or a `NEEDS-CLARIFICATION` list. On clarification, get the answers from the user and re-dispatch.
-- **Everything else keeps its existing model matching** — execution, search/explore, review subagents are unchanged by this rule.
-- **Never** switch the session model to Fable (`/model fable`) or set `CLAUDE_CODE_SUBAGENT_MODEL` — both defeat the guardrail that Fable is reached only through the `planner` agent.
-- **Model-unavailable fallback:** if an assigned model is down/unavailable (e.g. Fable returns "currently unavailable"), fall back to the **next most capable** available model, never a less-capable one — so Fable → **Opus** (NOT Sonnet). Planning still routes through the `planner` sub-agent; only its model tier changes (pass `model: opus` to the Agent tool). Resume the pinned tier once it's back.
+- **Planning** → dispatch `dev-pipeline:planner` for any non-trivial change: multiple files, uncertain approach, or unfamiliar code. If you could describe the diff in one sentence, skip planning and just do it. The planner is pinned `model: fable`, so planning gets Fable even in an Opus session. It cannot ask the user questions or spawn sub-agents — clarify with the user and gather context FIRST, then hand it a complete brief. Full pipeline: `~/.claude/skills/dev-pipeline/README.md`.
+- **Everything else inherits the session model** — execution, search/explore, review subagents never escalate to a more capable model on their own.
+- **Claude never changes the model division:** never run `/model` (it persists to settings.json) and never set `CLAUDE_CODE_SUBAGENT_MODEL`. Model switching is the user's lever, not Claude's.
+- **Model-unavailable fallback:** if an assigned model is down/unavailable (e.g. Fable returns "currently unavailable"), fall back to the **next most capable** available model, never a less-capable one — so Fable → **Opus** (NOT Sonnet). Planning still routes through the planner sub-agent; only its model tier changes (pass `model: opus` to the Agent tool). Resume the pinned tier once it's back.

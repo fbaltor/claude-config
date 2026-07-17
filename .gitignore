@@ -15,9 +15,7 @@ scripts/reviews/.pr-reviews/
 
 node_modules
 
-# Track agents and skills
-!agents/
-!agents/**
+# Track skills
 !skills/
 !skills/**
 
