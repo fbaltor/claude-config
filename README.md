@@ -10,8 +10,7 @@ Personal Claude Code configuration: custom skills, sub-agents, scripts, and inte
 
 ```
 ~/.claude/
-├── agents/          # Sub-agent definitions (spawned by skills)
-├── skills/          # Custom slash-command skills
+├── skills/          # Custom slash-command skills; dev-pipeline/ is a skills-dir plugin (the whole dev workflow)
 ├── scripts/         # TypeScript utilities (Linear, GitHub)
 ├── plugins/         # Installed Claude Code plugins
 ├── plans/           # Implementation plans (git add -f to track)
@@ -23,29 +22,30 @@ Personal Claude Code configuration: custom skills, sub-agents, scripts, and inte
 
 ## Skills
 
-Skills are invoked via `/skill-name` inside Claude Code. Each lives in `skills/<name>/SKILL.md`.
+Skills are invoked via `/skill-name` inside Claude Code. Each lives in `skills/<name>/SKILL.md`. Skills inside the **dev-pipeline plugin** are namespaced `/dev-pipeline:<name>`.
 
 | Skill | Command | Description |
 |-------|---------|-------------|
-| **Meta-Workflow** | `/meta-workflow` | Autonomous multi-phase execution of a plan doc: per-phase subagents, TDD isolation, adversarial critic gating, resumable. |
-| **Impact Analysis** | `/impact_analysis` | Find all files and lines affected by a proposed change (read-only). |
-
-> **Planning** is no longer a skill. Implementation plans are produced by the `planner` sub-agent (runs on Fable), dispatched by the orchestrator — see Sub-Agents below and the Model Tiering section of `CLAUDE.md`.
-| **Research Codebase** | `/research_codebase` | Deep codebase investigation. Spawns parallel sub-agents. Saves to `~/research/`. |
+| **Research Codebase** | `/dev-pipeline:research_codebase` | Deep codebase investigation. Spawns parallel sub-agents. Saves to `~/.claude/research/`. |
+| **Impact Analysis** | `/dev-pipeline:impact_analysis` | Find all files and lines affected by a proposed change (read-only). |
 | **Linear** | `/linear` | Fetch Linear issues/projects. Auto-detects issue from git branch (e.g. `JUMP-123`). |
 | **Linear Push Doc** | `/linear-push-doc` | Sync a local markdown file to a Linear document. |
-| **Linear Pull Doc** | `/linear-pull-doc` | Pull a Linear document into a local markdown file. |
 | **Triage Reviews** | `/triage-reviews` | Classify GitHub PR review comments as Major / Minor / False Positive. |
+
+(Not exhaustive — see `skills/` for the full set.)
+
+> **Planning and execution** are not skills. The pipeline — planner (Fable), test-writer, coverage-verifier, adversarial critic — ships as sub-agents in the `dev-pipeline` plugin. End-to-end doc: `skills/dev-pipeline/README.md`.
 
 ## Sub-Agents
 
-Defined in `agents/*.md`. These are spawned by skills to run specialized tasks in parallel.
+Pipeline agents live in `skills/dev-pipeline/agents/` and are dispatched as `dev-pipeline:<name>`.
 
 | Agent | Model | Purpose |
 |-------|-------|---------|
-| **planner** | Fable | Produce a detailed, self-contained implementation plan from a brief. The only Fable-pinned agent; dispatched by the Opus orchestrator. |
-
-All agents operate as **documentarians** — they describe existing code without suggesting improvements unless asked.
+| **dev-pipeline:planner** | Fable | Produce a detailed, self-contained implementation plan from a brief. The only Fable-pinned agent; dispatched by the orchestrator. |
+| **dev-pipeline:test-writer** | inherit | Write the failing test suite from a behavior spec, before implementation (input-partitioned). |
+| **dev-pipeline:coverage-verifier** | inherit | Read-only audit: classify each behavior bullet's test coverage as full/partial/missing. |
+| **dev-pipeline:critic** | inherit | Adversarial cold review gating phase completion; severity-tagged findings, no praise. |
 
 ## Scripts
 
@@ -102,7 +102,7 @@ Naming convention: `YYYY-MM-DD-kebab-case-description.md`
 `settings.json` controls:
 
 - **Permissions** — Which tools Claude Code can use without prompting
-- **Plugins** — Currently: `code-simplifier`
+- **Plugins** — Marketplace: `code-simplifier`, `caveman`, `lua-lsp`, `pyright-lsp`; local skills-dir: `dev-pipeline`
 - **Features** — Extended thinking enabled, high effort level, auto-memory on
 - **Status line** — Custom bash script showing context usage %, cost, and model
 
@@ -112,28 +112,25 @@ Naming convention: `YYYY-MM-DD-kebab-case-description.md`
 
 ### Planning and Implementing a Feature
 
-The orchestrator (Opus) gathers context and dispatches the `planner` sub-agent (Fable) to write the plan; `/meta-workflow` then executes it.
+The orchestrator gathers context, dispatches the `dev-pipeline:planner` sub-agent (Fable) to write the plan, then executes it phase by phase with the pipeline agents. Full doc: `skills/dev-pipeline/README.md`.
 
 ```
 # 1. Ask for a plan — just describe the work
 Plan: add cursor-based pagination to all listing API endpoints
 
 # The orchestrator will:
-# - Ask any clarifying questions and gather context (Explore/investigator subagents)
-# - Dispatch the `planner` sub-agent (Fable) with a complete brief
-# - The planner writes a detailed plan to ~/.claude/plans/2026-03-20-add-pagination.md
-#   and returns the path + a summary (or a NEEDS-CLARIFICATION list)
+# - Ask clarifying questions and gather context (Explore/investigator subagents)
+# - Dispatch dev-pipeline:planner (Fable) with a complete brief
+# - The planner writes ~/.claude/plans/2026-03-20-add-pagination.md and returns
+#   the path + summary (or a NEEDS-CLARIFICATION list)
 
-# 2. Review the plan, suggest changes, iterate until satisfied
+# 2. Review the plan, iterate until satisfied
 
-# 3. Execute it autonomously, phase by phase
-/meta-workflow ~/.claude/plans/2026-03-20-add-pagination.md
-
-# Meta-workflow will:
-# - Run each phase in a fresh subagent (TDD isolation on code phases)
-# - Gate every phase with an adversarial critic
-# - Checkpoint to <plan>.status.yaml for resumability
-# - Pause for manual sign-off in --manual mode
+# 3. Ask to execute it. Per phase, the orchestrator dispatches:
+#    dev-pipeline:test-writer  → tests from the behavior spec (never sees impl notes)
+#    dev-pipeline:coverage-verifier → full/partial/missing audit
+#    general-purpose implementer → makes the tests pass (tests are the contract)
+#    dev-pipeline:critic → cold, severity-tagged gate before "done"
 ```
 
 ### Triaging PR Reviews
@@ -178,13 +175,10 @@ Output looks like:
 
 ### Syncing Documents with Linear
 
-Use `/linear-push-doc` and `/linear-pull-doc` for one-way syncs between local markdown and Linear documents.
+Use `/linear-push-doc` for one-way syncs from local markdown to Linear documents.
 
 ```
-# Pull a Linear document locally for the first time (needs the document ID)
-/linear-pull-doc docs/architecture.md --id abc123-def456
-
-# This creates docs/architecture.md with frontmatter:
+# A Linear-linked doc carries its document ID in frontmatter:
 # ---
 # linear_document_id: abc123-def456
 # linear_document_title: Architecture Overview
@@ -196,12 +190,9 @@ Use `/linear-push-doc` and `/linear-pull-doc` for one-way syncs between local ma
 
 # Push ALL Linear-linked docs in the repo at once
 /linear-push-doc
-
-# Pull latest changes from Linear into the local file
-/linear-pull-doc docs/architecture.md
 ```
 
-The document ID is stored in YAML frontmatter after the initial pull, so subsequent syncs don't need `--id`. A `linear_sync_hash` is also written on each push/pull — the pre-PR hook uses it to verify docs are synced before creating a PR (only docs changed on the branch are checked).
+The document ID lives in YAML frontmatter, so pushes don't need an `--id`. A `linear_sync_hash` is written on each push — the pre-PR hook uses it to verify docs are synced before creating a PR (only docs changed on the branch are checked).
 
 ### Fetching Linear Issues
 
@@ -220,11 +211,11 @@ Use `/linear` to pull issue or project context into your Claude Code session.
 
 ### Investigating a Codebase
 
-Use `/research_codebase` for deep, documented investigations.
+Use `/dev-pipeline:research_codebase` for deep, documented investigations.
 
 ```
 # Research how authentication works in the project
-/research_codebase How does the auth middleware handle token refresh?
+/dev-pipeline:research_codebase How does the auth middleware handle token refresh?
 
 # Claude will:
 # - Spawn parallel sub-agents (locator, analyzer, pattern-finder)
@@ -235,10 +226,10 @@ Use `/research_codebase` for deep, documented investigations.
 
 ### Assessing Impact of a Change
 
-Use `/impact_analysis` before refactoring to know exactly what will break.
+Use `/dev-pipeline:impact_analysis` before refactoring to know exactly what will break.
 
 ```
-/impact_analysis Rename the UserService class to ProfileService
+/dev-pipeline:impact_analysis Rename the UserService class to ProfileService
 
 # Claude will:
 # - Find every file that imports, references, or tests UserService
@@ -268,7 +259,7 @@ This repo uses several Claude Code extension features. Here are the official doc
 |---------|---------|------|
 | **Features Overview** | — | [Extend Claude Code](https://code.claude.com/docs/en/features-overview) — When to use skills vs agents vs hooks vs MCP |
 | **Skills** | `skills/` | [Custom slash commands](https://code.claude.com/docs/en/skills) — `SKILL.md` files, frontmatter, `$ARGUMENTS` |
-| **Sub-agents** | `agents/` | [Custom subagents](https://code.claude.com/docs/en/sub-agents) — Agent definitions, tools, model selection |
+| **Sub-agents** | `skills/dev-pipeline/agents/` | [Custom subagents](https://code.claude.com/docs/en/sub-agents) — Agent definitions, tools, model selection |
 | **Memory & CLAUDE.md** | `CLAUDE.md` | [Memory system](https://code.claude.com/docs/en/memory) — Global/project instructions, auto-memory, `MEMORY.md` |
 | **Settings** | `settings.json` | [Configuration](https://code.claude.com/docs/en/settings) — Permissions, features, scopes |
 | **MCP Servers** | `settings.json` | [MCP integrations](https://code.claude.com/docs/en/mcp) — Connecting to Linear, Notion, etc. |
