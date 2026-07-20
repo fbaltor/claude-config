@@ -1,7 +1,7 @@
 {
   "name": "dev-pipeline",
   "version": "1.0.0",
-  "description": "The dev workflow as one unit: Fable planner, input-partitioned test-writer, read-only coverage-verifier, adversarial cold critic, plus codebase-research and impact-analysis skills. See README.md for the end-to-end pipeline.",
+  "description": "The dev workflow as one unit: Fable planner, input-partitioned test-writer, read-only coverage-verifier, test-locked implementer, adversarial cold critic, plus codebase-research and impact-analysis skills. See README.md for the end-to-end pipeline.",
   "author": {
     "name": "Filipe Baltor",
     "email": "fbaltor@gmail.com"
