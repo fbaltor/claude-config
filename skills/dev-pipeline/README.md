@@ -22,15 +22,15 @@ Editing any file here requires `/reload-plugins` or a new session to take effect
 
 **Skip planning entirely** when the diff is describable in one sentence — just do it (a critic pass is still worthwhile for risky one-liners).
 
-**1. Plan** — dispatch `dev-pipeline:planner` (Fable) with a complete brief: the goal, the user's answered clarifications, pointers to key files/research. The planner cannot ask questions or spawn sub-agents. It writes to `~/.claude/plans/` and returns the path + summary, or a `NEEDS-CLARIFICATION` list (get answers, re-dispatch). Plans partition every phase into `### Behavior` (WHAT — observable) vs `### Implementation Notes` (HOW — the recipe); that partition is what makes step 3 work.
+**1. Plan** — dispatch `dev-pipeline:planner` (Fable) with a complete brief: the goal, the user's answered clarifications, pointers to key files/research. The planner cannot ask questions or spawn sub-agents. It writes to `~/.claude/plans/` and returns the path + summary, or a `NEEDS-CLARIFICATION` list (get answers, re-dispatch). Plans partition every phase into `### Behavior` (WHAT — observable) vs `### Implementation Notes` (HOW — the recipe); that partition is what makes step 3 work. Each code phase also carries `### Test Rigor` (`light` | `standard` | `exhaustive`) with a one-line justification — see the tier table below; the user ratifies or bumps it during plan review.
 
 **2. Plan review** — the user reviews the plan (one artifact at a time — Work Cadence). Iterate until approved.
 
 **3. Execute, phase by phase** — each role is a fresh subagent dispatch; the orchestrator carries only summaries.
 
 Code phases (TDD):
-1. `dev-pipeline:test-writer` — brief contains ONLY: objective, `### Behavior` bullets, automated success criteria, out-of-scope, docs safe for testing, paths to code under test. Never implementation notes or plan internals. It commits its test files at stage exit (the audit boundary).
-2. `dev-pipeline:coverage-verifier` — classifies each behavior bullet full/partial/missing. Any `missing` → back to the test-writer with the gaps. Cap 2 test-writing cycles; escalate to the user on a 3rd.
+1. `dev-pipeline:test-writer` — brief contains ONLY: objective, `### Behavior` bullets, the phase's `### Test Rigor` tier, automated success criteria, out-of-scope, docs safe for testing, paths to code under test. Never implementation notes or plan internals. It commits its test files at stage exit (the audit boundary).
+2. `dev-pipeline:coverage-verifier` — classifies each behavior bullet full/partial/missing against the phase's rigor tier (its bar for "missed edge case" is tier-relative). Any `missing` → back to the test-writer with the gaps. Cap 2 test-writing cycles; escalate to the user on a 3rd.
 3. `dev-pipeline:implementer` — sees the tests, the full plan, and the implementation notes. The tests are the contract: it must not weaken, skip, or delete tests to get green, and must run the phase's automated success criteria until they pass. **Dispatch it; do not implement inline.** An orchestrator that has read the tests is free to reshape them and accumulates implementation detail it is supposed to carry only as summaries — this stage exists to make that structurally impossible. A test the implementer believes is wrong comes back as a report, not an edit; route it to the test-writer. Its report must include `git diff --name-only <test-writer-sha>..HEAD` filtered to the locked set (every file the test-writer's stage-exit commit touched — specs *and* their fixtures/mocks/snapshots), proving empty.
 4. `dev-pipeline:critic` — see the gate below.
 
@@ -41,18 +41,29 @@ Non-code phases (docs, config, research): produce with a subagent suited to the 
 Building the critic brief (orchestrator's job):
 - **Checklist** — derive from the phase's behavior bullets + non-functional constraints + project rules (one checkable line each; never ad-hoc). Example: "Every behavior bullet is covered by at least one failing-if-broken test", "No implicit I/O introduced (fs, net, db)".
 - **Provenance line — mandatory on every code phase, never omitted:** "The production code came from a dispatched `dev-pipeline:implementer` report carrying its pasted, empty test-diff proof — not from inline orchestrator edits." Give the critic the implementer's stage-exit sha as a named input; if there is no implementer report to point at, that is a FAIL, not an UNCLEAR. This line exists because the critic is the only role that has been dispatched on every phase in practice — putting the anti-absorption check anywhere else means it is missing in exactly the case it is meant to catch.
+- **Tier line — every code phase:** "The suite's depth matches the phase's `### Test Rigor` tier: every behavior bullet has a failing-if-broken test, and at `light`/`standard` the suite does not go materially deeper than the tier allows." An oversized suite is a FAIL, not diligence — without this line nothing in the pipeline can ever say "too many tests."
 - **Frame-break probe** — one question challenging the approach itself, grounded in a known constraint. Example: "Is this the right abstraction, given <research constraint>?"
 
 **5. Commit per phase** — new commits at phase exit (no amend, no force-push, no `--no-verify`, no `--no-gpg-sign`).
 
 **6. Downstream** — PRs go up draft + self-assigned.
 
+## Test rigor tiers (per code phase)
+
+| Tier | Suite shape |
+|---|---|
+| `light` | One test per behavior bullet — happy path + only bullet-named error paths; no boundary sweeps, taxonomies, purity checks |
+| `standard` | `light` + boundary triplet (n−1/n/n+1) per named limit + one representative per named invalid-input class |
+| `exhaustive` | Systematic edge-case analysis — input-class taxonomies, error precedence, purity/non-mutation. Reserve for phases the plan justifies |
+
+The floor never moves: every behavior bullet has ≥1 failing-if-broken test at every tier — the tier changes edge-case *depth*, never bullet *coverage*. The planner proposes the tier per phase (criteria in planner.md: blast radius, logic density, sole-verification-layer, contract stability); the user ratifies at plan review; the orchestrator threads it verbatim into the test-writer, coverage-verifier, and critic briefs. For code work without a plan, the orchestrator sets it (default `light`) or asks. The tier is a contract input: the test-writer never chooses its own tier, and the implementer has no say in it — tests are the contract at every tier. Density rules (`it.each` folding, comments on fixtures not tests) are unconditional in test-writer.md, independent of tier.
+
 ## Input partitioning (the kernel)
 
 | Role | Sees | Never sees |
 |---|---|---|
-| test-writer | objective, behavior spec, exit criteria, out-of-scope, testing-safe docs, code under test | implementation notes, plan internals, intended approach |
-| coverage-verifier | behavior spec, out-of-scope, test files | implementation, plan |
+| test-writer | objective, behavior spec, rigor tier, exit criteria, out-of-scope, testing-safe docs, code under test | implementation notes, plan internals, intended approach |
+| coverage-verifier | behavior spec, rigor tier, out-of-scope, test files | implementation, plan |
 | implementer | tests, full plan (incl. `### Behavior`), implementation notes, test-writer stage-exit sha | the test-writer's reasoning trace; any expectation list positioned as overriding the tests (tests are the contract) |
 | critic | artifacts/diff, contract, checklist, frame-break probe | actor's reasoning trace or self-summary |
 

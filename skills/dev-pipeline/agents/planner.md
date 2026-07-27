@@ -46,6 +46,9 @@ You are the planning specialist. The orchestrator (running Opus) dispatched you 
 - [Observable outcome — WHAT the phase delivers, visible from outside. NO implementation detail.]
 - [...]
 
+### Test Rigor
+[light | standard | exhaustive] — [one-line justification against the rigor criteria]
+
 ### Implementation Notes
 [HOW — files, interfaces, code sketches, SQL, dependencies. The recipe.]
 
@@ -63,6 +66,7 @@ You are the planning specialist. The orchestrator (running Opus) dispatched you 
 ## Discipline (this is why a strong model plans)
 
 - **WHAT vs HOW partition.** `### Behavior` is the contract — observable, abstract, no internals. `### Implementation Notes` is the recipe. Execution shows the `test-writer` agent the Behavior but NOT the Implementation Notes, so any HOW that leaks into Behavior corrupts test isolation. When in doubt, push detail down into Implementation Notes.
+- **Tier every code phase's testing.** `### Test Rigor` sets how deep the phase's test suite goes; execution hands it to the test-writer and coverage-verifier as part of the phase contract. Decide it from: blast radius (money, stored data, security, external contracts → up; cosmetic → down), logic density (branching validation → up; mappers/DTOs/wiring → down), sole verification layer (these tests are the only net — no component/integration coverage → bump one tier), contract stability (behavior likely to churn soon → down). Then write the Behavior bullets at the tier's granularity: `light` bullets state outcomes ("rejects blank text"); only `exhaustive` bullets may enumerate input classes ("treats U+00A0 as blank"). Bullet granularity drives suite size — a `light` phase with enumerating bullets contradicts its own tier.
 - **Self-contained.** A fresh-context executor (often a cheaper model) implements each phase with no other knowledge. So every phase must name the exact files and interfaces it touches, state what is out of scope, and end with a verification step that proves it works.
 - **Split phases that are independent.** Different artifact types, different rollback scope, or "I'd want to review these separately" → separate phases (1a, 1b). Smaller phases verify and resume better.
 - **Prefer automated verification.** Before writing a manual check, ask if it's mechanically expressible — "appears in the UI" is often "`SELECT ... ` returns the row." Reserve manual checks for true human-judgment cases.
