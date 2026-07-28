@@ -3,7 +3,8 @@
   "env": {
     "CLAUDE_CODE_EFFORT_LEVEL": "xhigh",
     "CAVEMAN_DEFAULT_MODE": "lite",
-    "CLAUDE_CODE_NO_FLICKER": "1"
+    "CLAUDE_CODE_NO_FLICKER": "1",
+    "CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION": "500"
   },
   "permissions": {
     "defaultMode": "bypassPermissions"
