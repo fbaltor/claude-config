@@ -43,11 +43,19 @@ Before writing a new Bash-matcher hook, recall the captured stdin schema from me
 
 When a task involves multiple discrete deliverables (e.g., audit → plan → issues), produce one artifact at a time and wait for review before continuing. "Proceed" means "do the next step", not "do everything remaining."
 
-## File Organization
+## File Organization — garden vs stream
 
-- Save research/investigation documents to the project's `docs/` directory when working inside a project repo. Use `/home/fbaltor/.claude/research/` only for cross-project or non-repo investigations.
-- Use descriptive filenames with date prefixes: `YYYY-MM-DD-description.md` (e.g., `2026-03-18-lily-joo-save-error-investigation.md`).
-- Never save plans or research under `.claude/` within the project repo. Plans go to `/home/fbaltor/.claude/plans/`; investigation docs go to `docs/` in the repo.
+Every documentation sink is either a **garden** (living, topical files — maintained, expected currently true, staleness is a bug; plain topical names, **no date prefixes**, git carries the dates) or a **stream** (dated snapshots `YYYY-MM-DD-description.md` — true as of their date, **never edited afterward**; supersede with a new dated file that links back). Each level has one garden and typed streams (adopted 2026-07-28; pattern rationale: `/home/fbaltor/skedia/docs/research/2026-07-28-meeting-notes-organization-research.md`).
+
+| Level | Garden | Streams |
+|---|---|---|
+| Global (cross-project) | `~/memory` (iwe vault, written via the `remember` skill) | `/home/fbaltor/.claude/research/` (cross-project/non-repo investigations) · `/home/fbaltor/.claude/plans/` (plans) |
+| Project repo | `<repo>/docs/` (topical, maintained) | `<repo>/docs/research/` (investigations) · other typed streams per repo (e.g. `meetings/`) |
+
+- Investigation docs go to `docs/research/` inside the project repo; use `/home/fbaltor/.claude/research/` only for cross-project or non-repo work. Repos with a legacy flat dated `docs/` migrate opportunistically — new docs follow the pattern regardless.
+- Plans always go to `/home/fbaltor/.claude/plans/` — never inside the project repo, never under in-repo `.claude/`.
+- **Promotion (stream → garden):** when a snapshot's conclusions become durable, distill them into the right level's garden (a topical `docs/` file, or `~/memory` via `remember`) and cite the snapshot as provenance; never edit the snapshot itself.
+- Never create a second global garden (e.g. `~/.claude/docs/`) — the cross-project garden is `~/memory`, where recall works.
 
 ## Testing
 
