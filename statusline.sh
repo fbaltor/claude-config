@@ -52,7 +52,11 @@ fi
 
 CAVE_PART=""
 caveman_flag="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/.caveman-active"
-if [ -f "$caveman_flag" ]; then
+caveman_suspend="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/.caveman-suspend"
+if [ -f "$caveman_suspend" ]; then
+  # user-prompt-caveman-suspend.js holds the flag hostage during a deep dive
+  CAVE_PART=" | caveman:deep-dive"
+elif [ -f "$caveman_flag" ]; then
   cave_mode=$(cat "$caveman_flag" 2>/dev/null)
   if [ -n "$cave_mode" ]; then
     CAVE_PART=" | caveman:${cave_mode}"

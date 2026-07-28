@@ -27,10 +27,27 @@ Hook scripts live in `/home/fbaltor/.claude/hooks/` and `/home/fbaltor/.claude/s
 | SessionStart | `session-start-iwe-memory.ts` (tsx) | Injects the `~/memory` iwe map + recall protocol when `CC_MEM=map` (default sessions — see Memory) |
 | PostToolUse (`mcp__iwe-memory__iwe_*` writes) | `post-memory-update-transparency.ts` (tsx) | Emits a user-visible `📝 Long-term memory (~/memory) updated — …` line on each graph write (create/update/extract/rename/delete/inline/squash) — the iwe analog of native "Updating memory". Silent on dry-run/list/interrupted. |
 | UserPromptSubmit | `user-prompt-memory-nudge.js` (node) | On a durable-fact signal in the prompt (preference / correction / standing instruction), injects a one-line reminder to consider the `remember` skill. Recall-tuned regex; gated to `CC_MEM` map/primer (fail-open if unset); raises salience only — does **not** force a write. |
+| UserPromptSubmit | `user-prompt-caveman-suspend.js` (node) | Suspends caveman for **deep-dive phases** (see Caveman below) — detects research intent, moves the plugin's flag aside, injects a prose-mode counter-instruction. Sticky across bare follow-ups. |
 
 (The caveman plugin also registers `SessionStart` `caveman-activate.js` + `UserPromptSubmit` `caveman-mode-tracker.js` — plugin-managed, run from the plugin cache, nothing in `~/.claude/hooks/` or settings.json. Idiomatic setup is plugin-only; the legacy `--with-hooks` copies were removed 2026-06-10.)
 
 Before writing a new Bash-matcher hook, recall the captured stdin schema from memory (`iwe find hook stdin` → `tooling` branch) — official docs may not match reality. If hooks fail silently, dump stdin with `cat > /tmp/hook-stdin-dump.json`.
+
+## Caveman
+
+Caveman mode is on by default at `lite` (`CAVEMAN_DEFAULT_MODE` in settings.json), but **suspended during deep dives**: its minimalism helps on execution turns and hurts while Felipe is still building a mental model of an unfamiliar domain.
+
+`hooks/user-prompt-caveman-suspend.js` owns this. It is a sticky state machine, one transition per prompt:
+
+- **Enter** on research intent (investigate / research / explain / walk me through / how does / why does / trade-offs / compare / should I …).
+- **Stay** on everything else — so bare follow-ups (`why?`, `go on`) don't flip style mid-explanation.
+- **Exit** on execution intent (implement / fix / commit / do it / go ahead …) **only when no research signal is also present**. ENTER always beats RESUME, so "explain how to implement X" suspends, and "why does the build fail" stays suspended.
+
+Two enforcement mechanisms, because either alone is insufficient: the hook moves `.caveman-active` aside (stashing the mode in `.caveman-suspend`), which kills the plugin's per-turn reinforcement at the source; and it injects a counter-instruction every suspended turn, because the SessionStart hook has already dumped the full ruleset into context and deleting a file cannot retract that.
+
+Manual control: **"pause caveman"** / **"resume caveman"**. A manual pause ignores the exit heuristic entirely — only an explicit resume (or a `/caveman …` command, which hands control back to the plugin; the informational `/caveman-stats` / `/caveman-help` are excepted and don't lift a suspension) lifts it. Statusline shows `caveman:deep-dive` while suspended.
+
+Never edit the plugin's `SKILL.md` to change this — it lives in the plugin cache and is clobbered on update.
 
 ### Error handling convention
 

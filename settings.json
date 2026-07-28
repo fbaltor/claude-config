@@ -41,6 +41,11 @@
             "type": "command",
             "command": "node \"/home/fbaltor/.claude/hooks/user-prompt-memory-nudge.js\"",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node \"/home/fbaltor/.claude/hooks/user-prompt-caveman-suspend.js\"",
+            "timeout": 5
           }
         ]
       }
