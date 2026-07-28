@@ -11,9 +11,9 @@ This machine runs **NixOS**: `/bin/bash` does not exist (only `/bin/sh`). Any sc
 Long-term memory on this machine is the **iwe note-graph at `~/memory`** (plain Markdown linked notes), **not** Claude's native auto-memory. This is the **default for every `claude` session**; **`claude --native`** opts out (native auto-memory, no iwe). The `claude` wrapper lives in `~/nixos-config/home/fbaltor/bash/bashrc`.
 
 - **How it loads (default sessions):** the `SessionStart` hook (`session-start-iwe-memory.ts`) injects the `index` MOC **map** + a recall protocol when `CC_MEM=map`; facts are **paged in on demand**, never preloaded. The graph is also the **`iwe-memory` MCP server** (`mcp__iwe-memory__iwe_find` / `iwe_retrieve` / `iwe_create` / …) — prefer those tools over shelling `iwe`.
-- **Read/write** via the `recall` and `remember` skills; both gate on `$CC_MEM`, so they no-op under `--native`. Notes are hub→leaf **inclusion trees** (own-line wiki links); `iwe retrieve -k <key> -d N` pages a branch, starting from `index`.
+- **Read/write** via the `recall` and `remember` skills; both gate on `$CC_MEM`, so they no-op under `--native`. Notes are hub→leaf **inclusion trees** (own-line wiki links); `iwe retrieve -k <key> --expand-includes N` pages a branch, starting from `index`.
 - **Native memory is off at runtime, not in config:** the wrapper sets `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` per default session, so `/memory` reads "Auto-memory: off". The `autoMemoryEnabled: true` setting is left on **on purpose** so `--native` sessions still get native memory. `/memory` only manages native memory + the `CLAUDE.md` instruction files — it has no awareness of iwe.
-- **Reference:** the system's own doc is `pkm/iwe-as-cc-memory` in the library; note-writing conventions are `~/memory/conventions.md`. Runs on iwe **0.6.0** (`iwec`), pinned in `home.nix`.
+- **Reference:** the system's own doc is `pkm/iwe-as-cc-memory` in the library; note-writing conventions are `~/memory/conventions.md`. Runs on iwe **0.16.0** (`iwec`), pinned in `home.nix` (bumped from 0.6.0 on 2026-07-28: file watching fixes stale MCP-server state on external edits; BM25 `--lexical` search; `retrieve` expansion is now explicit `--expand-*` flags — old `-d`/`-c`/`--dry-run` are gone).
 
 ## Hooks
 

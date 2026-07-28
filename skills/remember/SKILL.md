@@ -20,7 +20,7 @@ Save durable, non-obvious facts (mirrors the native memory taxonomy):
 
 ## 2. Dedup — update vs create
 ```bash
-cd ~/memory && iwe find "<topic>"          # already covered?  (also try: grep -ri "<keyword>" .)
+cd ~/memory && iwe find --fuzzy "<topic>"  # already covered?  (--lexical for BM25 full-text; also try: grep -ri "<keyword>" .)
 ```
 If an existing note covers it → **update** it (`Edit`/`iwe update`). Otherwise **create** a new leaf.
 
@@ -38,7 +38,7 @@ If an existing note covers it → **update** it (`Edit`/`iwe update`). Otherwise
 ## 4. Conventions (full list in `~/memory/conventions.md`)
 - **One physical line per paragraph and bullet** — never hard-wrap (`normalize` joins soft-wrapped lines).
 - First `#` heading is the note's **title**; one concept per note; kebab-case keys.
-- Cross-refs are **piped wiki links** `[[key|Title]]` — root-relative key, **no `.md`**, and the **display text after `|` must equal the target note's H1 title** (otherwise `normalize` rewrites it or it silently dangles). iwe resolves wiki links by path/basename across the whole vault, so they resolve from any note and survive moves. (Markdown `[](key)` links resolve folder-relative and break for non-root notes — don't use them.)
+- Cross-refs are **piped wiki links** `[[key|Title]]` — root-relative key, **no `.md`**, and the **display text after `|` must equal the target note's H1 title** — `normalize` does **not** rewrite wiki-link text, so fix mismatches by hand; a wrong *key* silently dangles. iwe resolves wiki links by path/basename across the whole vault, so they resolve from any note and survive moves. (Markdown `[](key)` links resolve folder-relative and break for non-root notes — don't use them.)
 - **Ingest vs reference (the core model — see `~/memory/conventions.md`):** settled pure-knowledge → write the **full content** (decompose if >~500 words into leaves under an overview note); **live workspaces & code projects** → a **reference-only summary + pointer**, the repo stays canonical (don't mirror).
 - **External resources = `gf`-jumpable absolute paths in inline code** (e.g. `` `/home/fbaltor/quant/STATUS.md` ``). Never markdown-link a local file — `normalize` mangles it (collapses `file://`, strips `.md`, treats bare paths as note-keys). Only web URLs may be markdown links.
 - **End with provenance:** ingested → *"Ingested in full from `/abs/path` (settled; wiki canonical)"*; reference-only → *"Canonical source (jump with `gf`): `/abs/path` — summary; edit the source."*
