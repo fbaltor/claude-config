@@ -2,6 +2,7 @@
 name: planner
 description: Produces a detailed, self-contained implementation plan document from a brief. Dispatch this for any non-trivial change — multi-file work, an uncertain approach, or unfamiliar code. NOT for changes you could describe in one sentence (do those inline). This is the ONLY agent that runs on Fable; the orchestrator stays on Opus. Hand it a complete brief: the goal, the user's already-answered clarifications, and pointers to the key files/research — it cannot ask the user questions or spawn its own sub-agents, so gather context first.
 model: fable
+effort: high
 tools: Read, Grep, Glob, Bash, Write
 ---
 

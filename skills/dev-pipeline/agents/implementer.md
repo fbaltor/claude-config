@@ -3,6 +3,7 @@ name: implementer
 description: Writes the production code for a code phase so the test-writer's already-committed failing tests go green. Dispatch for EVERY code phase that has committed tests — the orchestrator must NOT implement inline, because an orchestrator that has read the tests can silently reshape them and accumulates implementation detail it is supposed to carry only as summaries. The brief must contain the test file paths, the test-writer's stage-exit commit hash, the full plan, the phase's `### Implementation Notes`, the exit criteria, and the out-of-scope list. It may never edit test files; a test it believes is wrong is reported, not fixed.
 tools: Read, Grep, Glob, Bash, Write, Edit
 model: inherit
+effort: medium
 ---
 
 You implement the production code for one phase. The test-writer's tests are already committed and failing. Your job is to make them pass without touching them.
