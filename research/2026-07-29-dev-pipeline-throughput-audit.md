@@ -372,6 +372,125 @@ coverage-verifier on `sonnet`/`medium`: at `fable`/`xhigh` it caught a genuinely
 assertion satisfiable by any ≥3-char string), and that is the single change in this batch with a
 real quality risk.
 
+## Part 4 — How to actually measure whether the change helped
+
+Researched 2026-07-29, after the config change, to answer "what would a credible before/after look
+like?". **Provenance caveat:** this part was researched inline rather than by the three dedicated
+sub-agents originally dispatched, because all three died on repeated `API Error: 529 Overloaded`
+(two cycles each, six failures; each was resumed via `SendMessage` at the same tier per the new
+guardrail, never respawned cheaper). It is therefore less exhaustive than intended — the Codex,
+Aider and eval-framework sections are thinner than the Claude Code one. Gaps are marked.
+
+### The decisive finding: the instrument already exists, natively
+
+Claude Code's OpenTelemetry export carries **exactly** the attribution this question needs.
+`CLAUDE_CODE_ENABLE_TELEMETRY=1` plus an exporter (`OTEL_METRICS_EXPORTER`,
+`OTEL_EXPORTER_OTLP_ENDPOINT`, …) emits `claude_code.cost.usage` (USD) and
+`claude_code.token.usage` (tokens), and **both carry these attributes** [verified,
+code.claude.com/docs/en/monitoring-usage]:
+
+- `model` — the model identifier
+- `query_source` — `"main"` | `"subagent"` | `"auxiliary"`
+- `agent.name` — the subagent type
+- `effort` — `"low"` | `"medium"` | `"high"` | `"xhigh"` | `"max"`, absent if unsupported
+- and on the token metric, `type` — `"input"` | `"output"` | `"cacheRead"` | `"cacheCreation"`
+
+That is a per-role, per-effort, per-token-type cost breakdown with no custom tooling. The
+`claude_code.api_request` event additionally carries `input_tokens`, `output_tokens`,
+`cache_read_tokens`, `cache_creation_tokens`, `cost_usd` and `cost_usd_micros`, with `prompt.id`
+correlating every event from one user prompt.
+
+**The operational trap that would silently ruin the measurement:** `agent.name` records built-in
+names verbatim but **collapses user-defined agents to `"custom"` unless `OTEL_LOG_TOOL_DETAILS=1`**
+(and `plugin.name` collapses third-party to `"third-party"` the same way). Every dev-pipeline role
+is plugin-defined, so without that flag all five roles report as one indistinguishable `"custom"`
+bucket — the exact dimension being tested. Set it, or the data cannot answer the question.
+
+Other metrics available: `claude_code.session.count`, `claude_code.lines_of_code.count`,
+`claude_code.commit.count`, `claude_code.pull_request.count`, `claude_code.active_time.total`,
+`claude_code.code_edit_tool.decision`. Note that `lines_of_code.count` and `commit.count` together
+give the *denominator* of the tokens-per-delivered-line metric automatically.
+
+### The transcript route is the only one that can see the past
+
+Telemetry only starts collecting when enabled, so it cannot produce the *before* half of a
+before/after. The transcript corpus can: **1,955 JSONL files, 639 MB** already on this machine
+[verified locally], including per-subagent transcripts under `<session>/subagents/`. Every
+assistant message carries a `usage` object with `input_tokens`, `output_tokens`,
+`cache_creation_input_tokens`, `cache_read_input_tokens`, plus `model`, `effort` and timestamps —
+which is how every number in Part 1 was derived. Community tools over the same data:
+**ccusage** (~4,800★, offline, daily/monthly/per-session, tracks cache tokens separately),
+**CodeBurn** (classifies each turn into 13 categories by tool-usage pattern), **cccost/ccost**
+(per-request costing via LiteLLM pricing data). [assumed] None of them was confirmed to attribute
+cost to *subagent type* — the `analyze2.py` scripts written for this audit do, so keep them.
+
+### Gateway-level accounting: capable, but inapplicable here
+
+The standard production stack is **LiteLLM proxy** for routing plus **Langfuse** or **Helicone**
+for tracing: every request through the proxy logs input tokens, output tokens, per-request cost
+and latency, segmentable via `Helicone-User-Id` / `Helicone-Property-*` headers or custom session
+IDs (agent traces otherwise appear as a flat sequence of LLM calls, losing the agent-graph view).
+**But this does not apply to a subscription setup:** per `tooling/cc-model-tiering`, Claude Code
+cannot mix billing sources within a session and `ANTHROPIC_API_KEY` outranks subscription OAuth,
+so routing through a gateway flips the whole session to API billing. Rejected on that ground, not
+on capability.
+
+### Cross-tool comparison (thin — the dedicated agent never ran)
+
+**OpenAI Codex** is the closest analogue and configures the same dial: `model_reasoning_effort`
+accepting `minimal|low|medium|high|xhigh` (model-dependent), with OTel settings under an `[otel]`
+section in `~/.codex/config.toml` (`exporter`, `metrics_exporter`, `trace_exporter`,
+`log_user_prompt`). Its metrics centre on `tokens.used` per session segmented by model, with
+default tags `auth_mode`, `originator`, `session_source`, `model`, `app.version`. **Claude Code's
+telemetry is materially richer for this specific question**, because Codex's documented tags
+include no effort or per-subagent attribution. One practitioner claim worth noting as
+corroboration of the effort/cost curve, though blog-level not primary: high reasoning effort
+"costs 3-5x more tokens". **Not covered** (agents died): Aider's inline per-message cost accounting
+and polyglot benchmark, Gemini CLI, opencode/Amp/Cline/Goose/Copilot CLI.
+
+### The methodology, and why n=2 cannot work
+
+Agents are non-deterministic on identical input: one study reports **2.3–4.2 distinct action
+sequences per 10 runs** on the same inputs, and the standard guidance is to average **3+ runs**,
+measuring baseline noise across three *identical* runs first and setting any quality gate above
+that noise floor. A sharp warning from the same literature: two runs of the same agent on the same
+task set can produce nearly identical *aggregate* scores while disagreeing on a meaningful
+fraction of *individual* tasks — aggregate stability hides task-level noise.
+
+**Your own data already measures the noise floor, and it is large.** The two features on
+2026-07-29 ran under an *identical* configuration (Fable, `xhigh`, always-thinking) and still came
+out at **415 vs 693 output tokens per delivered line** — a 67% spread with the config held
+constant. Task difficulty and shape alone move this metric by two-thirds. So a single
+before/after feature pair cannot detect any config effect smaller than roughly that, and the
+honest conclusion is that **the next feature's number will be uninterpretable on its own.** What
+is interpretable: the mechanism-level metrics that don't depend on task size — thinking-token
+share per role (65–82% before), effort attribute values, and context-per-turn — because those
+move directly with the setting rather than with the work.
+
+Anthropic's own eval guidance fits a solo setup: **"20-50 simple tasks drawn from real failures is
+a great start"**, each unambiguous enough that two domain experts reach the same pass/fail verdict,
+sourced from "the manual checks you run during development"; and they explicitly track efficiency
+alongside correctness — turn count, tool calls, total tokens, time-to-first-token, output
+tokens/second, time-to-last-token. They also stress **reading transcripts** to confirm a score
+change reflects agent behaviour rather than an eval artifact. They do not prescribe a sample count,
+and do not directly address comparing two *harness configurations* rather than two models —
+that gap appears to be genuinely unaddressed in primary sources.
+
+### Recommended protocol, sized to be doable
+
+1. **Enable OTel now, with `OTEL_LOG_TOOL_DETAILS=1`.** One-time setup; gives per-role,
+   per-effort cost and token attribution for all future work. This is the single highest-value
+   step and it is nearly free.
+2. **Do not try to A/B on real features.** The 67% same-config spread makes it futile. Judge the
+   change on the mechanism metrics instead (thinking share, effort attribution, context per turn),
+   which are directly attributable.
+3. **If you want a real answer, build a small fixed task set** — 5–10 replayable tasks from scribe's
+   own history, not 20–50, since each costs a full pipeline run — and run it **A/A first** (same
+   config three times) to see the noise floor before comparing configs at all.
+4. **Track the gate-catch rate** (real defects the critic finds per phase) as the quality guard on
+   the cost cuts. It is the metric that would catch the coverage-verifier downgrade, and today's
+   audit gives concrete precedents to compare against.
+
 ## Sources
 
 Field research, 2026-07-29.
@@ -394,6 +513,24 @@ Field research, 2026-07-29.
 - [Agentic Skills Frameworks Compared — Ry Walker](https://rywalker.com/research/agentic-skills-frameworks)
 - [aaddrick/claude-pipeline — GitHub](https://github.com/aaddrick/claude-pipeline)
 - [Codex Subagents GA — digitalapplied](https://www.digitalapplied.com/blog/codex-subagents-ga-multi-agent-autonomous-coding-guide)
+
+Part 4 (measurement) sources:
+
+- [Claude Code — Monitoring usage (OTel metrics, events, attributes)](https://code.claude.com/docs/en/monitoring-usage) — primary; the metric/event/attribute identifiers
+- [Claude Code — Create custom subagents (frontmatter `effort`, `model`)](https://code.claude.com/docs/en/sub-agents) — primary
+- [Claude Code — Model configuration (effort levels, defaults, `/effort`)](https://code.claude.com/docs/en/model-config) — primary
+- [Demystifying evals for AI agents — Anthropic](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents) — primary; 20-50 tasks, efficiency metrics
+- [ccusage — usage analysis over Claude Code JSONL](https://ccusage.com/guide/cost-modes)
+- [badlogic/cccost — instrument Claude Code for actual token usage and cost](https://github.com/badlogic/cccost)
+- [CodeBurn — analyze Claude Code token usage by task (HN)](https://news.ycombinator.com/item?id=47759035)
+- [Codex CLI observability: OpenTelemetry traces and metrics](https://codex.danielvaughan.com/2026/03/28/codex-cli-opentelemetry-observability/)
+- [openai/codex — Observability and Telemetry (DeepWiki)](https://deepwiki.com/openai/codex/9.4-observability-and-telemetry)
+- [Codex advanced configuration (`model_reasoning_effort`)](https://developers.openai.com/codex/config-advanced)
+- [Langfuse — observability for LiteLLM proxy](https://langfuse.com/integrations/gateways/litellm)
+- [LiteLLM vs Helicone vs Langfuse (2026)](https://llmcfo.com/research/litellm-vs-helicone-vs-langfuse)
+- [When Agents Disagree With Themselves — arXiv 2602.11619](https://arxiv.org/html/2602.11619v2) — run-to-run action-sequence variance
+- [The Non-Determinism Problem: evaluating agents reliably — The Context Lab](https://www.thecontextlab.ai/blog/non-determinism-problem-evaluating-agents-reliably)
+- [Testing AI Agents: validating non-deterministic behavior — SitePoint](https://www.sitepoint.com/testing-ai-agents-deterministic-evaluation-in-a-non-deterministic-world/)
 - [Choosing the Right Multi-Agent Architecture — LangChain](https://www.langchain.com/blog/choosing-the-right-multi-agent-architecture)
 
 Local ground truth: session transcripts under `~/.claude/projects/-home-fbaltor-scribe*/`;
