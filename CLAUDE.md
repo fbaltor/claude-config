@@ -62,7 +62,7 @@ When a task involves multiple discrete deliverables (e.g., audit → plan → is
 
 ## File Organization — garden vs stream
 
-Every documentation sink is either a **garden** (living, topical files — maintained, expected currently true, staleness is a bug; plain topical names, **no date prefixes**, git carries the dates) or a **stream** (dated snapshots `YYYY-MM-DD-description.md` — true as of their date, **never edited afterward**; supersede with a new dated file that links back). Each level has one garden and typed streams (adopted 2026-07-28; pattern rationale: `/home/fbaltor/skedia/docs/research/2026-07-28-meeting-notes-organization-research.md`).
+Every documentation sink is either a **garden** (living, topical files — maintained, expected currently true, staleness is a bug; plain topical names, **no date prefixes**, git carries the dates) or a **stream** (dated snapshots `YYYY-MM-DD-description.md` — dated by the investigation they record, not frozen on write; see the revision rule below). Each level has one garden and typed streams (adopted 2026-07-28; pattern rationale: `/home/fbaltor/skedia/docs/research/2026-07-28-meeting-notes-organization-research.md`).
 
 | Level | Garden | Streams |
 |---|---|---|
@@ -71,7 +71,8 @@ Every documentation sink is either a **garden** (living, topical files — maint
 
 - Investigation docs go to `docs/research/` inside the project repo; use `/home/fbaltor/.claude/research/` only for cross-project or non-repo work. Repos with a legacy flat dated `docs/` migrate opportunistically — new docs follow the pattern regardless.
 - Plans always go to `/home/fbaltor/.claude/plans/` — never inside the project repo, never under in-repo `.claude/`.
-- **Promotion (stream → garden):** when a snapshot's conclusions become durable, distill them into the right level's garden (a topical `docs/` file, or `~/memory` via `remember`) and cite the snapshot as provenance; never edit the snapshot itself.
+- **Revising a stream doc — update in place vs. new dated file.** A dated doc is *not* frozen on write. While you are still polishing the same concept or area it already covers — correcting an error, adding detail, tightening a conclusion, folding in a later finding on the same question — **update the existing file in place**; it stays the single current account of that topic, and git carries the revision history. Start a **new dated file** when the work **diverges** to a different question/area, or **substantially expands** past the original doc's scope — then link the new file back to the old one. Test: "is this the same investigation, better?" → edit. "Is this a different or much bigger investigation?" → new file.
+- **Promotion (stream → garden):** when a snapshot's conclusions become durable, distill them into the right level's garden (a topical `docs/` file, or `~/memory` via `remember`) and cite the snapshot as provenance. Promotion itself doesn't rewrite the snapshot — it copies conclusions upward — but that is a separate matter from the revision rule above, which still applies.
 - Never create a second global garden (e.g. `~/.claude/docs/`) — the cross-project garden is `~/memory`, where recall works.
 
 ## Testing
